@@ -2,19 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>대한민국 달력</title>
-
-<!-- iOS 홈 화면 앱(PWA) 설정 -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="달력·날씨">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#1a1a1a">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -39,8 +28,6 @@ body {
   background: var(--col-bg);
   color: var(--col-week);
   min-height: 100vh;
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* ── Header ── */
@@ -68,25 +55,13 @@ body {
   gap: 12px;
 }
 
-.nav-btn {
-  width: 34px; height: 34px;
-  border: 1px solid var(--col-border);
-  border-radius: 8px;
-  background: transparent;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
-  color: var(--col-week);
-  transition: background 0.15s;
-}
-.nav-btn:hover { background: var(--col-bg); }
-
 .month-label {
   font-size: 17px;
   font-weight: 700;
   min-width: 120px;
   text-align: center;
   letter-spacing: -0.3px;
+  user-select: none;
 }
 
 .today-btn {
@@ -107,6 +82,12 @@ body {
   padding: 1rem 1rem 0.5rem;
   max-width: 1100px;
   margin: 0 auto;
+  touch-action: pan-y pinch-zoom; /* 좌우 스와이프 활성화 */
+  user-select: none; /* 드래그 시 텍스트 선택 방지 */
+  cursor: grab;
+}
+.calendar-wrap:active {
+  cursor: grabbing;
 }
 
 .cal-grid {
@@ -526,7 +507,8 @@ body {
   }
 }
 </style>
-<script src="chart.umd.min.js"></script>
+<!-- Chart.js CDN (로컬 파일 누락 에러 방지) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -534,9 +516,7 @@ body {
   <div class="header-title">📅 대한민국 달력</div>
   <div class="header-nav">
     <button class="today-btn" onclick="goToday()">오늘</button>
-    <button class="nav-btn" onclick="changeMonth(-1)">&#8249;</button>
     <div class="month-label" id="monthLabel"></div>
-    <button class="nav-btn" onclick="changeMonth(1)">&#8250;</button>
   </div>
 </div>
 
@@ -637,6 +617,7 @@ body {
 let currentYear, currentMonth;
 let selectedDateKey = null;
 let schedules = {};
+let isDraggingCalendar = false; // 제스처 드래그 시 셀 클릭 방지 플래그
 
 try {
   const saved = localStorage.getItem('kr_cal_schedules');
@@ -648,12 +629,13 @@ function saveStorage() {
 }
 
 // ─────────────────────────────────────────────
-//  KOREAN HOLIDAYS
+//  KOREAN HOLIDAYS & SUBSTITUTE HOLIDAYS (2025 ~ 2040)
 // ─────────────────────────────────────────────
 function getFixedHolidays(year) {
-  return {
+  const holidays = {
     [`${year}-01-01`]: "신정",
     [`${year}-03-01`]: "삼일절",
+    [`${year}-05-01`]: "근로자의 날",
     [`${year}-05-05`]: "어린이날",
     [`${year}-06-06`]: "현충일",
     [`${year}-08-15`]: "광복절",
@@ -661,80 +643,190 @@ function getFixedHolidays(year) {
     [`${year}-10-09`]: "한글날",
     [`${year}-12-25`]: "성탄절",
   };
+
+  if (year >= 2026) {
+    holidays[`${year}-07-17`] = "제헌절";
+  }
+
+  return holidays;
 }
 
 const lunarHolidays = {
-  2020: { "2020-01-24":"설날 전날","2020-01-25":"설날","2020-01-26":"설날 다음날","2020-09-30":"추석 전날","2020-10-01":"추석","2020-10-02":"추석 다음날" },
-  2021: { "2021-02-11":"설날 전날","2021-02-12":"설날","2021-02-13":"설날 다음날","2021-05-19":"석가탄신일","2021-09-20":"추석 전날","2021-09-21":"추석","2021-09-22":"추석 다음날" },
-  2022: { "2022-01-31":"설날 전날","2022-02-01":"설날","2022-02-02":"설날 다음날","2022-05-08":"석가탄신일","2022-09-09":"추석 전날","2022-09-10":"추석","2022-09-11":"추석 다음날" },
-  2023: { "2023-01-21":"설날 전날","2023-01-22":"설날","2023-01-23":"설날 다음날","2023-05-27":"석가탄신일","2023-09-28":"추석 전날","2023-09-29":"추석","2023-09-30":"추석 다음날" },
-  2024: { "2024-02-09":"설날 전날","2024-02-10":"설날","2024-02-11":"설날 다음날","2024-05-15":"석가탄신일","2024-09-16":"추석 전날","2024-09-17":"추석","2024-09-18":"추석 다음날" },
-  2025: { "2025-01-28":"설날 전날","2025-01-29":"설날","2025-01-30":"설날 다음날","2025-05-05":"석가탄신일","2025-10-05":"추석 전날","2025-10-06":"추석","2025-10-07":"추석 다음날" },
-  2026: { "2026-02-16":"설날 전날","2026-02-17":"설날","2026-02-18":"설날 다음날","2026-05-24":"석가탄신일","2026-09-24":"추석 전날","2026-09-25":"추석","2026-09-26":"추석 다음날" },
-  2027: { "2027-02-05":"설날 전날","2027-02-06":"설날","2027-02-07":"설날 다음날","2027-05-13":"석가탄신일","2027-09-14":"추석 전날","2027-09-15":"추석","2027-09-16":"추석 다음날" },
-  2028: { "2028-01-25":"설날 전날","2028-01-26":"설날","2028-01-27":"설날 다음날","2028-05-02":"석가탄신일","2028-10-02":"추석 전날","2028-10-03":"추석","2028-10-04":"추석 다음날" },
-  2029: { "2029-02-12":"설날 전날","2029-02-13":"설날","2029-02-14":"설날 다음날","2029-05-20":"석가탄신일","2029-09-22":"추석 전날","2029-09-23":"추석","2029-09-24":"추석 다음날" },
-  2030: { "2030-02-02":"설날 전날","2030-02-03":"설날","2030-02-04":"설날 다음날","2030-05-10":"석가탄신일","2030-09-12":"추석 전날","2030-09-13":"추석","2030-09-14":"추석 다음날" },
+  2025: {
+    "2025-01-28":"설날 전날", "2025-01-29":"설날", "2025-01-30":"설날 다음날",
+    "2025-05-05":"부처님오신날",
+    "2025-10-05":"추석 전날", "2025-10-06":"추석", "2025-10-07":"추석 다음날"
+  },
+  2026: {
+    "2026-02-16":"설날 전날", "2026-02-17":"설날", "2026-02-18":"설날 다음날",
+    "2026-05-24":"부처님오신날",
+    "2026-09-24":"추석 전날", "2026-09-25":"추석", "2026-09-26":"추석 다음날"
+  },
+  2027: {
+    "2027-02-05":"설날 전날", "2027-02-06":"설날", "2027-02-07":"설날 다음날",
+    "2027-05-13":"부처님오신날",
+    "2027-09-14":"추석 전날", "2027-09-15":"추석", "2027-09-16":"추석 다음날"
+  },
+  2028: {
+    "2028-01-25":"설날 전날", "2028-01-26":"설날", "2028-01-27":"설날 다음날",
+    "2028-05-02":"부처님오신날",
+    "2028-10-02":"추석 전날", "2028-10-03":"추석", "2028-10-04":"추석 다음날"
+  },
+  2029: {
+    "2029-02-12":"설날 전날", "2029-02-13":"설날", "2029-02-14":"설날 다음날",
+    "2029-05-20":"부처님오신날",
+    "2029-09-21":"추석 전날", "2029-09-22":"추석", "2029-09-23":"추석 다음날"
+  },
+  2030: {
+    "2030-02-02":"설날 전날", "2030-02-03":"설날", "2030-02-04":"설날 다음날",
+    "2030-05-09":"부처님오신날",
+    "2030-09-11":"추석 전날", "2030-09-12":"추석", "2030-09-13":"추석 다음날"
+  },
+  2031: {
+    "2031-01-22":"설날 전날", "2031-01-23":"설날", "2031-01-24":"설날 다음날",
+    "2031-05-28":"부처님오신날",
+    "2031-09-30":"추석 전날", "2031-10-01":"추석", "2031-10-02":"추석 다음날"
+  },
+  2032: {
+    "2032-02-10":"설날 전날", "2032-02-11":"설날", "2032-02-12":"설날 다음날",
+    "2032-05-16":"부처님오신날",
+    "2032-09-18":"추석 전날", "2032-09-19":"추석", "2032-09-20":"추석 다음날"
+  },
+  2033: {
+    "2033-01-30":"설날 전날", "2033-01-31":"설날", "2033-02-01":"설날 다음날",
+    "2033-05-06":"부처님오신날",
+    "2033-09-07":"추석 전날", "2033-09-08":"추석", "2033-09-09":"추석 다음날"
+  },
+  2034: {
+    "2034-02-18":"설날 전날", "2034-02-19":"설날", "2034-02-20":"설날 다음날",
+    "2034-05-25":"부처님오신날",
+    "2034-09-26":"추석 전날", "2034-09-27":"추석", "2034-09-28":"추석 다음날"
+  },
+  2035: {
+    "2035-02-07":"설날 전날", "2035-02-08":"설날", "2035-02-09":"설날 다음날",
+    "2035-05-15":"부처님오신날",
+    "2035-09-15":"추석 전날", "2035-09-16":"추석", "2035-09-17":"추석 다음날"
+  },
+  2036: {
+    "2036-01-27":"설날 전날", "2036-01-28":"설날", "2036-01-29":"설날 다음날",
+    "2036-05-03":"부처님오신날",
+    "2036-10-03":"추석 전날", "2036-10-04":"추석", "2036-10-05":"추석 다음날"
+  },
+  2037: {
+    "2037-02-14":"설날 전날", "2037-02-15":"설날", "2037-02-16":"설날 다음날",
+    "2037-05-22":"부처님오신날",
+    "2037-09-23":"추석 전날", "2037-09-24":"추석", "2037-09-25":"추석 다음날"
+  },
+  2038: {
+    "2038-02-03":"설날 전날", "2038-02-04":"설날", "2038-02-05":"설날 다음날",
+    "2038-05-11":"부처님오신날",
+    "2038-09-12":"추석 전날", "2038-09-13":"추석", "2038-09-14":"추석 다음날"
+  },
+  2039: {
+    "2039-01-23":"설날 전날", "2039-01-24":"설날", "2039-01-25":"설날 다음날",
+    "2039-04-30":"부처님오신날",
+    "2039-10-01":"추석 전날", "2039-10-02":"추석", "2039-10-03":"추석 다음날"
+  },
+  2040: {
+    "2040-02-11":"설날 전날", "2040-02-12":"설날", "2040-02-13":"설날 다음날",
+    "2040-05-18":"부처님오신날",
+    "2040-09-20":"추석 전날", "2040-09-21":"추석", "2040-09-22":"추석 다음날"
+  }
+};
+
+const electionHolidays = {
+  "2026-06-03": "제9회 전국동시지방선거",
+  "2028-04-12": "제23대 국회의원선거",
+  "2030-03-27": "제22대 대통령선거",
+  "2030-06-05": "제10회 전국동시지방선거",
+  "2032-04-14": "제24대 국회의원선거",
+  "2034-06-07": "제11회 전국동시지방선거",
+  "2035-03-28": "제23대 대통령선거",
+  "2036-04-09": "제25대 국회의원선거",
+  "2038-06-02": "제12회 전국동시지방선거",
+  "2040-04-11": "제26대 국회의원선거"
 };
 
 function getAllHolidays(year) {
   const fixed = getFixedHolidays(year);
   const lunar = lunarHolidays[year] || {};
-  return { ...fixed, ...lunar };
+  const election = {};
+  for (const [d, name] of Object.entries(electionHolidays)) {
+    if (d.startsWith(String(year))) election[d] = name;
+  }
+  return { ...fixed, ...lunar, ...election };
 }
 
 function getSubstituteHolidays(year) {
   const all = getAllHolidays(year);
   const subst = {};
-  const keys = Object.keys(all).sort();
-  const added = new Set(keys);
+  const satSunSubstNames = ["삼일절", "어린이날", "부처님오신날", "제헌절", "광복절", "개천절", "한글날"];
+  const lunarBlocks = [
+    ["설날 전날", "설날", "설날 다음날"],
+    ["추석 전날", "추석", "추석 다음날"]
+  ];
 
-  keys.forEach(k => {
-    const d = new Date(k);
-    if (d.getDay() === 0) {
-      const next = new Date(d);
-      next.setDate(next.getDate() + 1);
-      let nk = fmtDate(next);
-      while (added.has(nk) || subst[nk]) {
-        next.setDate(next.getDate() + 1);
-        nk = fmtDate(next);
+  const occupied = new Set(Object.keys(all));
+
+  function findNextWorkday(dateStr) {
+    let cur = new Date(dateStr);
+    while (true) {
+      cur.setDate(cur.getDate() + 1);
+      const k = fmtDate(cur);
+      const day = cur.getDay();
+      if (day !== 0 && day !== 6 && !occupied.has(k) && !subst[k]) {
+        return k;
       }
-      subst[nk] = all[k] + " (대체)";
-      added.add(nk);
+    }
+  }
+
+  Object.keys(all).sort().forEach(k => {
+    const name = all[k];
+    if (satSunSubstNames.includes(name)) {
+      const d = new Date(k);
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) {
+        const nextWorkday = findNextWorkday(k);
+        subst[nextWorkday] = `${name} 대체공휴일`;
+        occupied.add(nextWorkday);
+      }
     }
   });
 
-  [ ["설날 전날","설날","설날 다음날"], ["추석 전날","추석","추석 다음날"] ].forEach(block => {
-    const blockKeys = keys.filter(k => block.includes(all[k])).sort();
-    if (blockKeys.length < 2) return;
-    const blockSet = new Set(blockKeys);
+  lunarBlocks.forEach(block => {
+    const blockKeys = Object.keys(all).filter(k => block.includes(all[k])).sort();
+    if (blockKeys.length === 0) return;
+
+    let needSubstCount = 0;
     blockKeys.forEach(k => {
-      const fixedHols = Object.keys(getFixedHolidays(year));
-      if (fixedHols.includes(k) && blockSet.has(k)) {
-        const lastKey = blockKeys[blockKeys.length - 1];
-        const last = new Date(lastKey);
-        last.setDate(last.getDate() + 1);
-        let lk = fmtDate(last);
-        while (added.has(lk) || subst[lk]) {
-          last.setDate(last.getDate() + 1);
-          lk = fmtDate(last);
-        }
-        if (!subst[lk]) {
-          subst[lk] = block.includes("설날") ? "설날 연휴 (대체)" : "추석 연휴 (대체)";
-          added.add(lk);
-        }
+      const d = new Date(k);
+      const dow = d.getDay();
+      const otherFixed = Object.keys(getFixedHolidays(year)).filter(fk => fk === k);
+      if (dow === 0 || otherFixed.length > 0) {
+        needSubstCount++;
       }
     });
+
+    const lastKey = blockKeys[blockKeys.length - 1];
+    let curCheckDate = lastKey;
+    for (let i = 0; i < needSubstCount; i++) {
+      const nextWorkday = findNextWorkday(curCheckDate);
+      const label = block[1].includes("설날") ? "설날 연휴 대체공휴일" : "추석 연휴 대체공휴일";
+      subst[nextWorkday] = label;
+      occupied.add(nextWorkday);
+      curCheckDate = nextWorkday;
+    }
   });
+
   return subst;
 }
 
 function fmtDate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ─────────────────────────────────────────────
-//  RENDER CALENDAR
+//  CALENDAR RENDER LOGIC
 // ─────────────────────────────────────────────
 function goToday() {
   const now = new Date();
@@ -763,7 +855,7 @@ function render() {
   const dows = ['일','월','화','수','목','금','토'];
   dows.forEach((d, i) => {
     const el = document.createElement('div');
-    el.className = 'dow-header' + (i===0?' dow-sun':(i===6?' dow-sat':''));
+    el.className = 'dow-header' + (i === 0 ? ' dow-sun' : (i === 6 ? ' dow-sat' : ''));
     el.textContent = d;
     grid.appendChild(el);
   });
@@ -776,10 +868,9 @@ function render() {
   let holidayCount = 0;
   let offCount = 0;
   
-  // Count holidays in current month
   for (let d = 1; d <= daysInMonth; d++) {
     const dk = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const wd = new Date(year, month-1, d).getDay();
+    const wd = new Date(year, month - 1, d).getDay();
     const hasCustomHol = getSchedulesForDate(dk).some(s => s.text.includes('공휴일'));
     if (wd === 0 || wd === 6 || allHols[dk] || hasCustomHol) holidayCount++;
   }
@@ -823,7 +914,7 @@ function render() {
       const hn = document.createElement('div');
       hn.className = 'holiday-name';
       const name = allHols[dk];
-      hn.innerHTML = name.includes('대체') ? `<span class="subst-badge">대체휴일</span> ${name.replace(' (대체)','').replace(' 연휴 (대체)','연휴')}` : name;
+      hn.innerHTML = name.includes('대체') ? `<span class="subst-badge">대체휴일</span> ${name.replace(' 대체공휴일','')}` : name;
       cell.appendChild(hn);
     }
 
@@ -840,26 +931,100 @@ function render() {
       });
       cell.appendChild(sEl);
     }
-    cell.onclick = () => openPopup(dk, cy, cm, cd);
+    
+    // 제스처 스와이프 도중 클릭 방지
+    cell.onclick = () => {
+      if (isDraggingCalendar) return;
+      openPopup(dk, cy, cm, cd);
+    };
     grid.appendChild(cell);
   }
+
   const summaryEl = document.getElementById('monthSummary');
   if (summaryEl) {
     summaryEl.innerHTML = `<span>공휴일 (토·일 포함) <span class="sum-val">${holidayCount}일</span></span><span>OFF <span class="sum-val">${offCount}일</span></span>`;
   }
 }
 
+// ─────────────────────────────────────────────
+//  SWIPE & DRAG GESTURE FOR MONTH NAVIGATION
+// ─────────────────────────────────────────────
+function initCalendarGestures() {
+  const calArea = document.querySelector('.calendar-wrap');
+  if (!calArea) return;
+
+  let startX = 0;
+  let startY = 0;
+  let isPointerDown = false;
+  const THRESHOLD = 50;
+
+  // 1. 터치 제스처
+  calArea.addEventListener('touchstart', (e) => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    isDraggingCalendar = false;
+  }, { passive: true });
+
+  calArea.addEventListener('touchmove', (e) => {
+    const diffX = e.touches[0].clientX - startX;
+    if (Math.abs(diffX) > 10) isDraggingCalendar = true;
+  }, { passive: true });
+
+  calArea.addEventListener('touchend', (e) => {
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    handleSwipe(startX, startY, endX, endY);
+    setTimeout(() => { isDraggingCalendar = false; }, 80);
+  }, { passive: true });
+
+  // 2. 마우스 드래그 (PC 지원)
+  calArea.addEventListener('mousedown', (e) => {
+    if (e.target.closest('#popupOverlay')) return;
+    isPointerDown = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    isDraggingCalendar = false;
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isPointerDown) return;
+    if (Math.abs(e.clientX - startX) > 10) {
+      isDraggingCalendar = true;
+    }
+  });
+
+  window.addEventListener('mouseup', (e) => {
+    if (!isPointerDown) return;
+    isPointerDown = false;
+    handleSwipe(startX, startY, e.clientX, e.clientY);
+    setTimeout(() => { isDraggingCalendar = false; }, 80);
+  });
+
+  function handleSwipe(sX, sY, eX, eY) {
+    const diffX = eX - sX;
+    const diffY = eY - sY;
+
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > THRESHOLD) {
+      if (diffX < 0) {
+        changeMonth(1);  // 왼쪽 스와이프 -> 다음 달
+      } else {
+        changeMonth(-1); // 오른쪽 스와이프 -> 이전 달
+      }
+    }
+  }
+}
+
 function getSchedulesForDate(dk) {
   const res = [];
   const [y, m, d] = dk.split('-').map(Number);
-  const dObj = new Date(y, m-1, d);
+  const dObj = new Date(y, m - 1, d);
   for (const ok in schedules) {
     (schedules[ok] || []).forEach(s => {
       if (s.repeat === 'none') { if (ok === dk) res.push(s); return; }
       const [oy, om, od] = ok.split('-').map(Number);
-      const oObj = new Date(oy, om-1, od);
+      const oObj = new Date(oy, om - 1, od);
       if (dObj < oObj) return;
-      if (s.repeat === 'every6') { if (Math.round((dObj-oObj)/86400000)%6===0) res.push(s); }
+      if (s.repeat === 'every6') { if (Math.round((dObj - oObj) / 86400000) % 6 === 0) res.push(s); }
       else if (s.repeat === 'monthly-day') { if (d === od) res.push(s); }
       else if (s.repeat === 'yearly') { if (m === om && d === od) res.push(s); }
     });
@@ -919,10 +1084,10 @@ function deleteSchedule(dk, idx) {
 function updateRepeatOptions() {}
 
 // ─────────────────────────────────────────────
-//  날씨 위젯 스크립트
+//  사용자 현재 위치 기반 날씨 위젯
 // ─────────────────────────────────────────────
-const WEATHER_DEFAULT_LAT = 35.8242; // 전주
-const WEATHER_DEFAULT_LON = 127.1480;
+const FALLBACK_LAT = 35.8242; // 전주
+const FALLBACK_LON = 127.1480;
 
 const weatherCodeMap = {
   0: { text: '맑음', icon: '☀️' }, 1: { text: '대체로 맑음', icon: '🌤️' },
@@ -938,51 +1103,71 @@ const weatherCodeMap = {
 let weatherChart;
 
 async function startWeatherWidget() {
-  // 기본 위치 날씨 로드
-  loadWeatherData(WEATHER_DEFAULT_LAT, WEATHER_DEFAULT_LON, '전주 (기본)');
-  
-  // 위치 서비스 시도
+  const elLoc = document.getElementById('weatherLocation');
+  if (elLoc) elLoc.innerText = '현재 위치 확인 중...';
+
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
-      (pos) => { loadWeatherData(pos.coords.latitude, pos.coords.longitude); },
-      (err) => { tryIPLocation(); },
-      { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 }
+      (pos) => {
+        loadWeatherData(pos.coords.latitude, pos.coords.longitude);
+      },
+      () => {
+        tryIPLocation();
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 300000 }
     );
+  } else {
+    tryIPLocation();
   }
 }
 
 async function tryIPLocation() {
   try {
-    const res = await fetch('https://ipapi.co/json/').catch(() => null);
-    if (res) {
-      const data = await res.json();
-      if (data.latitude && data.longitude) { loadWeatherData(data.latitude, data.longitude, data.city); }
+    const res = await fetch('https://ipwho.is/?lang=ko').then(r => r.json());
+    if (res && res.success && res.latitude && res.longitude) {
+      const regionName = `${res.city || ''} (${res.region || ''})`.trim();
+      loadWeatherData(res.latitude, res.longitude, regionName);
+      return;
     }
   } catch (e) {}
+
+  loadWeatherData(FALLBACK_LAT, FALLBACK_LON, '전주시 (기본)');
 }
 
 async function loadWeatherData(lat, lon, fallbackName = '') {
   try {
     const weatherURL = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=14&timezone=Asia%2FSeoul`;
     const airURL = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi`;
-    const geoURL = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+    const geoURL = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ko`;
 
-    const weatherRes = await fetch(weatherURL).then(r => r.json()).catch(e => null);
-    const airData = await fetch(airURL).then(r => r.json()).catch(e => null);
-    const geoData = await fetch(geoURL).then(r => r.json()).catch(e => null);
+    const [weatherRes, airData, geoData] = await Promise.all([
+      fetch(weatherURL).then(r => r.json()).catch(() => null),
+      fetch(airURL).then(r => r.json()).catch(() => null),
+      fetch(geoURL).then(r => r.json()).catch(() => null)
+    ]);
 
     if (!weatherRes) return;
     updateWeatherUI(weatherRes, airData, geoData, fallbackName);
     drawWeatherChart(weatherRes.daily);
     renderForecastIcons(weatherRes.daily);
-  } catch (e) { console.error('날씨 데이터 로드 오류:', e); }
+  } catch (e) {
+    console.error('날씨 데이터 로드 오류:', e);
+  }
 }
 
 function updateWeatherUI(weatherData, airData, geoData, fallbackName) {
   const current = weatherData.current;
   const weather = weatherCodeMap[current.weather_code] || { text: '맑음', icon: '☀️' };
-  const address = geoData?.address || {};
-  const location = address.city || address.town || address.village || address.county || fallbackName || '현재 위치';
+  
+  const addr = geoData?.address || {};
+  let location = '';
+  if (addr.province || addr.city) {
+    const p = addr.province || addr.city;
+    const d = addr.district || addr.suburb || addr.borough || addr.town || addr.village || '';
+    location = `${p} ${d}`.trim();
+  } else {
+    location = fallbackName || '현재 위치';
+  }
 
   const elLoc = document.getElementById('weatherLocation');
   const elTemp = document.getElementById('weatherTemp');
@@ -1037,18 +1222,12 @@ function renderForecastIcons(daily) {
   });
 }
 
-// 초기화 실행
+// 브라우저 초기 로딩
 window.onload = () => {
   goToday();
+  initCalendarGestures();
   startWeatherWidget();
 };
-
-// 서비스워커 등록 (오프라인 캐싱)
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  });
-}
 </script>
 </body>
 </html>
