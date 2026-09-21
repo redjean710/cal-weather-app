@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>대한민국 달력</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -24,10 +24,11 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Noto Sans KR', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;
   background: var(--col-bg);
   color: var(--col-week);
   min-height: 100vh;
+  -webkit-text-size-adjust: 100%;
 }
 
 /* ── Header ── */
@@ -58,10 +59,11 @@ body {
 .month-label {
   font-size: 17px;
   font-weight: 700;
-  min-width: 120px;
+  min-width: 110px;
   text-align: center;
   letter-spacing: -0.3px;
   user-select: none;
+  -webkit-user-select: none;
 }
 
 .today-btn {
@@ -73,21 +75,17 @@ body {
   background: transparent;
   cursor: pointer;
   color: var(--col-week);
-  transition: background 0.15s;
+  -webkit-appearance: none;
 }
-.today-btn:hover { background: var(--col-bg); }
 
 /* ── Calendar ── */
 .calendar-wrap {
   padding: 1rem 1rem 0.5rem;
   max-width: 1100px;
   margin: 0 auto;
-  touch-action: pan-y pinch-zoom; /* 좌우 스와이프 활성화 */
-  user-select: none; /* 드래그 시 텍스트 선택 방지 */
-  cursor: grab;
-}
-.calendar-wrap:active {
-  cursor: grabbing;
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .cal-grid {
@@ -101,28 +99,25 @@ body {
   box-shadow: var(--shadow);
 }
 
-/* ── Weekday headers ── */
 .dow-header {
   background: var(--col-card);
   text-align: center;
   padding: 10px 0;
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.5px;
 }
 .dow-header.dow-sun { color: var(--col-sun); }
 .dow-header.dow-sat { color: var(--col-sat); }
 
-/* ── Day cells ── */
 .day-cell {
   background: var(--col-card);
-  min-height: 110px;
-  padding: 6px 8px 6px;
+  min-height: 95px;
+  padding: 4px 6px;
   cursor: pointer;
   position: relative;
-  transition: background 0.12s;
   display: flex;
   flex-direction: column;
+  -webkit-tap-highlight-color: transparent;
 }
 .day-cell:hover { background: #f9f8f5; }
 .day-cell.other-month { background: #fafafa; }
@@ -130,30 +125,30 @@ body {
 
 .day-cell.today .day-num {
   background: var(--col-accent);
-  color: #fff;
+  color: #fff !important;
   border-radius: 50%;
-  width: 26px; height: 26px;
-  display: flex; align-items: center; justify-content: center;
 }
 
 .day-num {
   font-size: 13px;
   font-weight: 500;
-  width: 26px; height: 26px;
-  display: flex; align-items: center; justify-content: center;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
 .day-cell.sun .day-num, .day-cell.holiday-cell .day-num { color: var(--col-sun); }
 .day-cell.sat .day-num { color: var(--col-sat); }
-.day-cell.today .day-num { color: #fff !important; }
 
 .holiday-name {
   font-size: 10px;
   color: var(--col-holiday);
   font-weight: 500;
   margin-top: 1px;
-  line-height: 1.3;
+  line-height: 1.2;
   word-break: keep-all;
 }
 .subst-badge {
@@ -161,41 +156,35 @@ body {
   background: #fff0f0;
   color: var(--col-holiday);
   border-radius: 3px;
-  padding: 1px 4px;
+  padding: 1px 3px;
   display: inline-block;
   margin-top: 1px;
   font-weight: 600;
 }
 
-/* ── Schedules inside cell ── */
 .schedules {
-  margin-top: 3px;
+  margin-top: 2px;
   display: flex;
   flex-direction: column;
   gap: 2px;
   flex: 1;
 }
 .sched-chip {
-  font-size: 11px;
-  padding: 2px 5px;
+  font-size: 10px;
+  padding: 1px 4px;
   border-radius: 4px;
   background: #eef2ff;
   color: #3730a3;
-  cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  font-weight: 500;
-  line-height: 1.5;
 }
-.sched-chip:hover { background: #e0e7ff; }
 .sched-chip.off-chip {
   background: #fef3c7;
   color: #92400e;
 }
 
-/* ── Monthly summary ── */
 .month-summary {
   background: var(--col-card);
   border: 1px solid var(--col-border);
@@ -207,10 +196,9 @@ body {
   gap: 20px;
   border-radius: 0 0 var(--radius) var(--radius);
 }
-.month-summary span { font-weight: 500; }
 .month-summary .sum-val { color: var(--col-week); font-weight: 700; }
 
-/* ── Popup overlay ── */
+/* ── Popup ── */
 .popup-overlay {
   display: none;
   position: fixed; inset: 0;
@@ -224,182 +212,79 @@ body {
 .popup {
   background: var(--col-card);
   border-radius: var(--radius);
-  width: 380px;
+  width: 360px;
   max-width: calc(100vw - 32px);
   box-shadow: 0 8px 40px rgba(0,0,0,0.18);
   overflow: hidden;
 }
 
 .popup-header {
-  padding: 16px 20px 12px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--col-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.popup-date {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-}
+.popup-date { font-size: 15px; font-weight: 700; }
 .popup-close {
   width: 30px; height: 30px;
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 20px;
   color: var(--col-muted);
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 6px;
 }
-.popup-close:hover { background: var(--col-bg); color: var(--col-week); }
-
-.popup-body { padding: 16px 20px; }
-
-.form-group { margin-bottom: 14px; }
-.form-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--col-muted);
-  margin-bottom: 5px;
-  display: block;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
+.popup-body { padding: 14px 18px; }
+.form-group { margin-bottom: 12px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--col-muted); margin-bottom: 4px; display: block; }
 .form-input, .form-select {
   width: 100%;
-  padding: 9px 12px;
+  padding: 8px 10px;
   border: 1px solid var(--col-border);
   border-radius: 8px;
   font-size: 14px;
-  font-family: 'Noto Sans KR', sans-serif;
-  color: var(--col-week);
   background: var(--col-bg);
   outline: none;
-  transition: border-color 0.15s;
+  -webkit-appearance: none;
 }
-.form-input:focus, .form-select:focus {
-  border-color: var(--col-accent);
-  background: #fff;
-}
-
-.repeat-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.popup-footer {
-  padding: 12px 20px 16px;
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-.btn-cancel {
-  padding: 8px 18px;
-  border: 1px solid var(--col-border);
+.repeat-row { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.popup-footer { padding: 10px 18px 14px; display: flex; gap: 8px; justify-content: flex-end; }
+.btn-cancel, .btn-save {
+  padding: 7px 16px;
   border-radius: 8px;
-  background: transparent;
   font-size: 13px;
-  font-weight: 500;
   cursor: pointer;
-  color: var(--col-muted);
-  font-family: 'Noto Sans KR', sans-serif;
 }
-.btn-cancel:hover { background: var(--col-bg); }
-.btn-save {
-  padding: 8px 18px;
-  border: none;
-  border-radius: 8px;
-  background: var(--col-accent);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: 'Noto Sans KR', sans-serif;
-  transition: opacity 0.15s;
-}
-.btn-save:hover { opacity: 0.8; }
-.btn-delete {
-  padding: 8px 14px;
-  border: 1px solid #fca5a5;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--col-holiday);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: 'Noto Sans KR', sans-serif;
-  margin-right: auto;
-}
-.btn-delete:hover { background: #fff5f5; }
+.btn-cancel { border: 1px solid var(--col-border); background: transparent; color: var(--col-muted); }
+.btn-save { border: none; background: var(--col-accent); color: #fff; }
 
-/* ── Schedule list in popup ── */
-.sched-list { margin-bottom: 14px; }
+.sched-list { margin-bottom: 12px; }
 .sched-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 10px;
-  border-radius: 7px;
+  padding: 6px 8px;
+  border-radius: 6px;
   border: 1px solid var(--col-border);
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   font-size: 13px;
   background: var(--col-bg);
 }
-.sched-item-text { flex: 1; font-weight: 500; }
-.sched-item-repeat { font-size: 11px; color: var(--col-muted); margin-left: 6px; }
-.sched-del-btn {
-  border: none;
-  background: transparent;
-  color: var(--col-muted);
-  cursor: pointer;
-  font-size: 16px;
-  width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 4px;
-}
-.sched-del-btn:hover { background: #fee2e2; color: var(--col-holiday); }
-
-.add-sched-toggle {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--col-muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 0;
-  border: none;
-  background: transparent;
-  font-family: 'Noto Sans KR', sans-serif;
-  letter-spacing: 0.2px;
-}
-.add-sched-toggle:hover { color: var(--col-week); }
-.add-form { margin-top: 10px; display: none; }
+.sched-del-btn { border: none; background: transparent; color: var(--col-muted); font-size: 16px; cursor: pointer; }
+.add-sched-toggle { font-size: 12px; font-weight: 600; color: var(--col-muted); cursor: pointer; border: none; background: transparent; padding: 4px 0; }
+.add-form { margin-top: 8px; display: none; }
 .add-form.open { display: block; }
+.holiday-info { font-size: 12px; color: var(--col-holiday); font-weight: 600; padding: 6px 8px; background: #fff5f5; border-radius: 6px; margin-bottom: 10px; display: none; }
 
-.holiday-info {
-  font-size: 12px;
-  color: var(--col-holiday);
-  font-weight: 600;
-  padding: 6px 10px;
-  background: #fff5f5;
-  border-radius: 7px;
-  margin-bottom: 12px;
-  display: none;
-}
-
-/* ── 날씨 위젯 스타일 ── */
+/* ── Weather ── */
 .weather-widget {
   max-width: 1100px;
-  margin: 1.5rem auto;
+  margin: 1rem auto;
   padding: 0 1rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
-
 .weather-card {
   background: var(--col-card);
   border: 1px solid var(--col-border);
@@ -407,107 +292,48 @@ body {
   padding: 1.25rem;
   box-shadow: var(--shadow);
 }
-
 .weather-top {
   display: grid;
   grid-template-columns: 1fr 1.5fr;
   gap: 1rem;
 }
-
-.weather-location {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--col-muted);
-  margin-bottom: 4px;
-}
-
-.weather-temp {
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: -1px;
-}
-
-.weather-desc {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--col-week);
-}
-
-.weather-icon {
-  font-size: 40px;
-  margin-top: 8px;
-}
-
+.weather-location { font-size: 14px; font-weight: 600; color: var(--col-muted); margin-bottom: 4px; }
+.weather-temp { font-size: 32px; font-weight: 700; letter-spacing: -1px; }
+.weather-desc { font-size: 15px; font-weight: 500; }
+.weather-icon { font-size: 36px; margin-top: 4px; }
 .weather-detail-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-top: 1rem;
 }
-
 .weather-detail-item {
   background: var(--col-bg);
   padding: 8px;
   border-radius: 8px;
   text-align: center;
 }
+.weather-detail-label { font-size: 10px; color: var(--col-muted); margin-bottom: 2px; }
+.weather-detail-value { font-size: 13px; font-weight: 600; }
 
-.weather-detail-label {
-  font-size: 10px;
-  color: var(--col-muted);
-  margin-bottom: 2px;
-}
-
-.weather-detail-value {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-#weatherChartWrap {
-  height: 180px;
-  margin-top: 10px;
-}
-
+#weatherChartWrap { height: 180px; margin-top: 10px; position: relative; }
 .weather-forecast-icons {
   display: flex;
   overflow-x: auto;
   gap: 12px;
-  padding: 10px 0;
-  scrollbar-width: none;
+  padding: 8px 0;
+  -webkit-overflow-scrolling: touch;
 }
 .weather-forecast-icons::-webkit-scrollbar { display: none; }
-
-.weather-forecast-day {
-  min-width: 60px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.weather-forecast-date {
-  font-size: 11px;
-  color: var(--col-muted);
-}
-
-.weather-forecast-emoji {
-  font-size: 24px;
-  margin: 4px 0;
-}
-
-.weather-forecast-temp {
-  font-size: 11px;
-  font-weight: 600;
-}
+.weather-forecast-day { min-width: 55px; text-align: center; flex-shrink: 0; }
+.weather-forecast-date { font-size: 11px; color: var(--col-muted); }
+.weather-forecast-emoji { font-size: 22px; margin: 4px 0; }
+.weather-forecast-temp { font-size: 11px; font-weight: 600; }
 
 @media (max-width: 600px) {
-  .weather-top {
-    grid-template-columns: 1fr;
-  }
-  .weather-detail-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  .weather-top { grid-template-columns: 1fr; }
 }
 </style>
-<!-- Chart.js CDN (로컬 파일 누락 에러 방지) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -525,7 +351,6 @@ body {
   <div class="month-summary" id="monthSummary"></div>
 </div>
 
-<!-- 날씨 위젯 HTML -->
 <div class="weather-widget">
   <div class="weather-top">
     <div class="weather-card">
@@ -565,7 +390,6 @@ body {
   </div>
 </div>
 
-<!-- Popup -->
 <div class="popup-overlay" id="popupOverlay" onclick="handleOverlayClick(event)">
   <div class="popup">
     <div class="popup-header">
@@ -584,24 +408,15 @@ body {
         <div class="form-group">
           <label class="form-label">반복</label>
           <div class="repeat-row">
-            <select class="form-select" id="repeatType" onchange="updateRepeatOptions()">
+            <select class="form-select" id="repeatType">
               <option value="none">반복 없음</option>
               <option value="every6">6일마다 반복</option>
               <option value="monthly-day">매월 반복</option>
               <option value="yearly">매년 반복</option>
             </select>
-            <select class="form-select" id="repeatUntil" style="display:none">
-              <option value="forever">무기한</option>
-              <option value="1">1개월 후 종료</option>
-              <option value="2">2개월 후 종료</option>
-              <option value="3">3개월 후 종료</option>
-              <option value="6">6개월 후 종료</option>
-              <option value="12">1년 후 종료</option>
-              <option value="24">2년 후 종료</option>
-            </select>
           </div>
         </div>
-        <div style="display:flex;gap:8px;margin-top:4px">
+        <div style="display:flex;gap:8px;margin-top:8px">
           <button class="btn-cancel" onclick="cancelAddForm()">취소</button>
           <button class="btn-save" onclick="saveSchedule()" style="flex:1">저장</button>
         </div>
@@ -612,24 +427,47 @@ body {
 
 <script>
 // ─────────────────────────────────────────────
-//  STATE
+//  SAFE DATE UTILS
 // ─────────────────────────────────────────────
-let currentYear, currentMonth;
-let selectedDateKey = null;
-let schedules = {};
-let isDraggingCalendar = false; // 제스처 드래그 시 셀 클릭 방지 플래그
+function parseDateParts(str) {
+  const parts = str.split('-').map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
 
-try {
-  const saved = localStorage.getItem('kr_cal_schedules');
-  if (saved) schedules = JSON.parse(saved);
-} catch(e) {}
-
-function saveStorage() {
-  try { localStorage.setItem('kr_cal_schedules', JSON.stringify(schedules)); } catch(e) {}
+function fmtDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 // ─────────────────────────────────────────────
-//  KOREAN HOLIDAYS & SUBSTITUTE HOLIDAYS (2025 ~ 2040)
+//  SAFARI-SAFE LOCALSTORAGE
+// ─────────────────────────────────────────────
+let schedules = {};
+try {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const saved = window.localStorage.getItem('kr_cal_schedules');
+    if (saved) schedules = JSON.parse(saved);
+  }
+} catch(e) {
+  schedules = {};
+}
+
+function saveStorage() {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('kr_cal_schedules', JSON.stringify(schedules));
+    }
+  } catch(e) {}
+}
+
+let currentYear, currentMonth;
+let selectedDateKey = null;
+let isDraggingCalendar = false;
+
+// ─────────────────────────────────────────────
+//  KOREAN HOLIDAYS (2025 ~ 2040)
 // ─────────────────────────────────────────────
 function getFixedHolidays(year) {
   const holidays = {
@@ -643,95 +481,27 @@ function getFixedHolidays(year) {
     [`${year}-10-09`]: "한글날",
     [`${year}-12-25`]: "성탄절",
   };
-
-  if (year >= 2026) {
-    holidays[`${year}-07-17`] = "제헌절";
-  }
-
+  if (year >= 2026) holidays[`${year}-07-17`] = "제헌절";
   return holidays;
 }
 
 const lunarHolidays = {
-  2025: {
-    "2025-01-28":"설날 전날", "2025-01-29":"설날", "2025-01-30":"설날 다음날",
-    "2025-05-05":"부처님오신날",
-    "2025-10-05":"추석 전날", "2025-10-06":"추석", "2025-10-07":"추석 다음날"
-  },
-  2026: {
-    "2026-02-16":"설날 전날", "2026-02-17":"설날", "2026-02-18":"설날 다음날",
-    "2026-05-24":"부처님오신날",
-    "2026-09-24":"추석 전날", "2026-09-25":"추석", "2026-09-26":"추석 다음날"
-  },
-  2027: {
-    "2027-02-05":"설날 전날", "2027-02-06":"설날", "2027-02-07":"설날 다음날",
-    "2027-05-13":"부처님오신날",
-    "2027-09-14":"추석 전날", "2027-09-15":"추석", "2027-09-16":"추석 다음날"
-  },
-  2028: {
-    "2028-01-25":"설날 전날", "2028-01-26":"설날", "2028-01-27":"설날 다음날",
-    "2028-05-02":"부처님오신날",
-    "2028-10-02":"추석 전날", "2028-10-03":"추석", "2028-10-04":"추석 다음날"
-  },
-  2029: {
-    "2029-02-12":"설날 전날", "2029-02-13":"설날", "2029-02-14":"설날 다음날",
-    "2029-05-20":"부처님오신날",
-    "2029-09-21":"추석 전날", "2029-09-22":"추석", "2029-09-23":"추석 다음날"
-  },
-  2030: {
-    "2030-02-02":"설날 전날", "2030-02-03":"설날", "2030-02-04":"설날 다음날",
-    "2030-05-09":"부처님오신날",
-    "2030-09-11":"추석 전날", "2030-09-12":"추석", "2030-09-13":"추석 다음날"
-  },
-  2031: {
-    "2031-01-22":"설날 전날", "2031-01-23":"설날", "2031-01-24":"설날 다음날",
-    "2031-05-28":"부처님오신날",
-    "2031-09-30":"추석 전날", "2031-10-01":"추석", "2031-10-02":"추석 다음날"
-  },
-  2032: {
-    "2032-02-10":"설날 전날", "2032-02-11":"설날", "2032-02-12":"설날 다음날",
-    "2032-05-16":"부처님오신날",
-    "2032-09-18":"추석 전날", "2032-09-19":"추석", "2032-09-20":"추석 다음날"
-  },
-  2033: {
-    "2033-01-30":"설날 전날", "2033-01-31":"설날", "2033-02-01":"설날 다음날",
-    "2033-05-06":"부처님오신날",
-    "2033-09-07":"추석 전날", "2033-09-08":"추석", "2033-09-09":"추석 다음날"
-  },
-  2034: {
-    "2034-02-18":"설날 전날", "2034-02-19":"설날", "2034-02-20":"설날 다음날",
-    "2034-05-25":"부처님오신날",
-    "2034-09-26":"추석 전날", "2034-09-27":"추석", "2034-09-28":"추석 다음날"
-  },
-  2035: {
-    "2035-02-07":"설날 전날", "2035-02-08":"설날", "2035-02-09":"설날 다음날",
-    "2035-05-15":"부처님오신날",
-    "2035-09-15":"추석 전날", "2035-09-16":"추석", "2035-09-17":"추석 다음날"
-  },
-  2036: {
-    "2036-01-27":"설날 전날", "2036-01-28":"설날", "2036-01-29":"설날 다음날",
-    "2036-05-03":"부처님오신날",
-    "2036-10-03":"추석 전날", "2036-10-04":"추석", "2036-10-05":"추석 다음날"
-  },
-  2037: {
-    "2037-02-14":"설날 전날", "2037-02-15":"설날", "2037-02-16":"설날 다음날",
-    "2037-05-22":"부처님오신날",
-    "2037-09-23":"추석 전날", "2037-09-24":"추석", "2037-09-25":"추석 다음날"
-  },
-  2038: {
-    "2038-02-03":"설날 전날", "2038-02-04":"설날", "2038-02-05":"설날 다음날",
-    "2038-05-11":"부처님오신날",
-    "2038-09-12":"추석 전날", "2038-09-13":"추석", "2038-09-14":"추석 다음날"
-  },
-  2039: {
-    "2039-01-23":"설날 전날", "2039-01-24":"설날", "2039-01-25":"설날 다음날",
-    "2039-04-30":"부처님오신날",
-    "2039-10-01":"추석 전날", "2039-10-02":"추석", "2039-10-03":"추석 다음날"
-  },
-  2040: {
-    "2040-02-11":"설날 전날", "2040-02-12":"설날", "2040-02-13":"설날 다음날",
-    "2040-05-18":"부처님오신날",
-    "2040-09-20":"추석 전날", "2040-09-21":"추석", "2040-09-22":"추석 다음날"
-  }
+  2025: { "2025-01-28":"설날 전날", "2025-01-29":"설날", "2025-01-30":"설날 다음날", "2025-05-05":"부처님오신날", "2025-10-05":"추석 전날", "2025-10-06":"추석", "2025-10-07":"추석 다음날" },
+  2026: { "2026-02-16":"설날 전날", "2026-02-17":"설날", "2026-02-18":"설날 다음날", "2026-05-24":"부처님오신날", "2026-09-24":"추석 전날", "2026-09-25":"추석", "2026-09-26":"추석 다음날" },
+  2027: { "2027-02-05":"설날 전날", "2027-02-06":"설날", "2027-02-07":"설날 다음날", "2027-05-13":"부처님오신날", "2027-09-14":"추석 전날", "2027-09-15":"추석", "2027-09-16":"추석 다음날" },
+  2028: { "2028-01-25":"설날 전날", "2028-01-26":"설날", "2028-01-27":"설날 다음날", "2028-05-02":"부처님오신날", "2028-10-02":"추석 전날", "2028-10-03":"추석", "2028-10-04":"추석 다음날" },
+  2029: { "2029-02-12":"설날 전날", "2029-02-13":"설날", "2029-02-14":"설날 다음날", "2029-05-20":"부처님오신날", "2029-09-21":"추석 전날", "2029-09-22":"추석", "2029-09-23":"추석 다음날" },
+  2030: { "2030-02-02":"설날 전날", "2030-02-03":"설날", "2030-02-04":"설날 다음날", "2030-05-09":"부처님오신날", "2030-09-11":"추석 전날", "2030-09-12":"추석", "2030-09-13":"추석 다음날" },
+  2031: { "2031-01-22":"설날 전날", "2031-01-23":"설날", "2031-01-24":"설날 다음날", "2031-05-28":"부처님오신날", "2031-09-30":"추석 전날", "2031-10-01":"추석", "2031-10-02":"추석 다음날" },
+  2032: { "2032-02-10":"설날 전날", "2032-02-11":"설날", "2032-02-12":"설날 다음날", "2032-05-16":"부처님오신날", "2032-09-18":"추석 전날", "2032-09-19":"추석", "2032-09-20":"추석 다음날" },
+  2033: { "2033-01-30":"설날 전날", "2033-01-31":"설날", "2033-02-01":"설날 다음날", "2033-05-06":"부처님오신날", "2033-09-07":"추석 전날", "2033-09-08":"추석", "2033-09-09":"추석 다음날" },
+  2034: { "2034-02-18":"설날 전날", "2034-02-19":"설날", "2034-02-20":"설날 다음날", "2034-05-25":"부처님오신날", "2034-09-26":"추석 전날", "2034-09-27":"추석", "2034-09-28":"추석 다음날" },
+  2035: { "2035-02-07":"설날 전날", "2035-02-08":"설날", "2035-02-09":"설날 다음날", "2035-05-15":"부처님오신날", "2035-09-15":"추석 전날", "2035-09-16":"추석", "2035-09-17":"추석 다음날" },
+  2036: { "2036-01-27":"설날 전날", "2036-01-28":"설날", "2036-01-29":"설날 다음날", "2036-05-03":"부처님오신날", "2036-10-03":"추석 전날", "2036-10-04":"추석", "2036-10-05":"추석 다음날" },
+  2037: { "2037-02-14":"설날 전날", "2037-02-15":"설날", "2037-02-16":"설날 다음날", "2037-05-22":"부처님오신날", "2037-09-23":"추석 전날", "2037-09-24":"추석", "2037-09-25":"추석 다음날" },
+  2038: { "2038-02-03":"설날 전날", "2038-02-04":"설날", "2038-02-05":"설날 다음날", "2038-05-11":"부처님오신날", "2038-09-12":"추석 전날", "2038-09-13":"추석", "2038-09-14":"추석 다음날" },
+  2039: { "2039-01-23":"설날 전날", "2039-01-24":"설날", "2039-01-25":"설날 다음날", "2039-04-30":"부처님오신날", "2039-10-01":"추석 전날", "2039-10-02":"추석", "2039-10-03":"추석 다음날" },
+  2040: { "2040-02-11":"설날 전날", "2040-02-12":"설날", "2040-02-13":"설날 다음날", "2040-05-18":"부처님오신날", "2040-09-20":"추석 전날", "2040-09-21":"추석", "2040-09-22":"추석 다음날" }
 };
 
 const electionHolidays = {
@@ -769,7 +539,7 @@ function getSubstituteHolidays(year) {
   const occupied = new Set(Object.keys(all));
 
   function findNextWorkday(dateStr) {
-    let cur = new Date(dateStr);
+    let cur = parseDateParts(dateStr);
     while (true) {
       cur.setDate(cur.getDate() + 1);
       const k = fmtDate(cur);
@@ -783,7 +553,7 @@ function getSubstituteHolidays(year) {
   Object.keys(all).sort().forEach(k => {
     const name = all[k];
     if (satSunSubstNames.includes(name)) {
-      const d = new Date(k);
+      const d = parseDateParts(k);
       const dow = d.getDay();
       if (dow === 0 || dow === 6) {
         const nextWorkday = findNextWorkday(k);
@@ -799,12 +569,10 @@ function getSubstituteHolidays(year) {
 
     let needSubstCount = 0;
     blockKeys.forEach(k => {
-      const d = new Date(k);
+      const d = parseDateParts(k);
       const dow = d.getDay();
       const otherFixed = Object.keys(getFixedHolidays(year)).filter(fk => fk === k);
-      if (dow === 0 || otherFixed.length > 0) {
-        needSubstCount++;
-      }
+      if (dow === 0 || otherFixed.length > 0) needSubstCount++;
     });
 
     const lastKey = blockKeys[blockKeys.length - 1];
@@ -821,12 +589,8 @@ function getSubstituteHolidays(year) {
   return subst;
 }
 
-function fmtDate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 // ─────────────────────────────────────────────
-//  CALENDAR RENDER LOGIC
+//  CALENDAR RENDER
 // ─────────────────────────────────────────────
 function goToday() {
   const now = new Date();
@@ -867,7 +631,7 @@ function render() {
 
   let holidayCount = 0;
   let offCount = 0;
-  
+
   for (let d = 1; d <= daysInMonth; d++) {
     const dk = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const wd = new Date(year, month - 1, d).getDay();
@@ -931,8 +695,7 @@ function render() {
       });
       cell.appendChild(sEl);
     }
-    
-    // 제스처 스와이프 도중 클릭 방지
+
     cell.onclick = () => {
       if (isDraggingCalendar) return;
       openPopup(dk, cy, cm, cd);
@@ -947,18 +710,15 @@ function render() {
 }
 
 // ─────────────────────────────────────────────
-//  SWIPE & DRAG GESTURE FOR MONTH NAVIGATION
+//  GESTURES
 // ─────────────────────────────────────────────
 function initCalendarGestures() {
   const calArea = document.querySelector('.calendar-wrap');
   if (!calArea) return;
 
-  let startX = 0;
-  let startY = 0;
-  let isPointerDown = false;
-  const THRESHOLD = 50;
+  let startX = 0, startY = 0;
+  const THRESHOLD = 40;
 
-  // 1. 터치 제스처
   calArea.addEventListener('touchstart', (e) => {
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
@@ -974,66 +734,39 @@ function initCalendarGestures() {
     const endX = e.changedTouches[0].clientX;
     const endY = e.changedTouches[0].clientY;
     handleSwipe(startX, startY, endX, endY);
-    setTimeout(() => { isDraggingCalendar = false; }, 80);
+    setTimeout(() => { isDraggingCalendar = false; }, 100);
   }, { passive: true });
-
-  // 2. 마우스 드래그 (PC 지원)
-  calArea.addEventListener('mousedown', (e) => {
-    if (e.target.closest('#popupOverlay')) return;
-    isPointerDown = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    isDraggingCalendar = false;
-  });
-
-  window.addEventListener('mousemove', (e) => {
-    if (!isPointerDown) return;
-    if (Math.abs(e.clientX - startX) > 10) {
-      isDraggingCalendar = true;
-    }
-  });
-
-  window.addEventListener('mouseup', (e) => {
-    if (!isPointerDown) return;
-    isPointerDown = false;
-    handleSwipe(startX, startY, e.clientX, e.clientY);
-    setTimeout(() => { isDraggingCalendar = false; }, 80);
-  });
 
   function handleSwipe(sX, sY, eX, eY) {
     const diffX = eX - sX;
     const diffY = eY - sY;
-
     if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > THRESHOLD) {
-      if (diffX < 0) {
-        changeMonth(1);  // 왼쪽 스와이프 -> 다음 달
-      } else {
-        changeMonth(-1); // 오른쪽 스와이프 -> 이전 달
-      }
+      if (diffX < 0) changeMonth(1);
+      else changeMonth(-1);
     }
   }
 }
 
 function getSchedulesForDate(dk) {
   const res = [];
-  const [y, m, d] = dk.split('-').map(Number);
-  const dObj = new Date(y, m - 1, d);
+  const parts = dk.split('-').map(Number);
+  const dObj = new Date(parts[0], parts[1] - 1, parts[2]);
   for (const ok in schedules) {
     (schedules[ok] || []).forEach(s => {
       if (s.repeat === 'none') { if (ok === dk) res.push(s); return; }
-      const [oy, om, od] = ok.split('-').map(Number);
-      const oObj = new Date(oy, om - 1, od);
+      const oParts = ok.split('-').map(Number);
+      const oObj = new Date(oParts[0], oParts[1] - 1, oParts[2]);
       if (dObj < oObj) return;
       if (s.repeat === 'every6') { if (Math.round((dObj - oObj) / 86400000) % 6 === 0) res.push(s); }
-      else if (s.repeat === 'monthly-day') { if (d === od) res.push(s); }
-      else if (s.repeat === 'yearly') { if (m === om && d === od) res.push(s); }
+      else if (s.repeat === 'monthly-day') { if (parts[2] === oParts[2]) res.push(s); }
+      else if (s.repeat === 'yearly') { if (parts[1] === oParts[1] && parts[2] === oParts[2]) res.push(s); }
     });
   }
   return res;
 }
 
 // ─────────────────────────────────────────────
-//  POPUP LOGIC
+//  POPUP
 // ─────────────────────────────────────────────
 function openPopup(dk, y, m, d) {
   selectedDateKey = dk;
@@ -1059,6 +792,10 @@ function toggleAddForm() {
   const form = document.getElementById('addForm');
   if (form) form.classList.toggle('open'); 
 }
+function cancelAddForm() {
+  const form = document.getElementById('addForm');
+  if (form) form.classList.remove('open');
+}
 function renderSchedList(dk) {
   const list = document.getElementById('schedList');
   if (!list) return;
@@ -1081,12 +818,11 @@ function deleteSchedule(dk, idx) {
     saveStorage(); render(); renderSchedList(dk);
   }
 }
-function updateRepeatOptions() {}
 
 // ─────────────────────────────────────────────
-//  사용자 현재 위치 기반 날씨 위젯
+//  WEATHER WIDGET
 // ─────────────────────────────────────────────
-const FALLBACK_LAT = 35.8242; // 전주
+const FALLBACK_LAT = 35.8242;
 const FALLBACK_LON = 127.1480;
 
 const weatherCodeMap = {
@@ -1100,23 +836,40 @@ const weatherCodeMap = {
   95: { text: '뇌우', icon: '⚡' }
 };
 
-let weatherChart;
+let weatherChart = null;
 
-async function startWeatherWidget() {
+function startWeatherWidget() {
   const elLoc = document.getElementById('weatherLocation');
-  if (elLoc) elLoc.innerText = '현재 위치 확인 중...';
+  if (elLoc) elLoc.innerText = '위치 확인 중...';
 
-  if (navigator.geolocation) {
+  let resolved = false;
+  const timer = setTimeout(() => {
+    if (!resolved) {
+      resolved = true;
+      tryIPLocation();
+    }
+  }, 2500);
+
+  if (typeof navigator !== 'undefined' && navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        loadWeatherData(pos.coords.latitude, pos.coords.longitude);
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          loadWeatherData(pos.coords.latitude, pos.coords.longitude);
+        }
       },
       () => {
-        tryIPLocation();
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          tryIPLocation();
+        }
       },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 300000 }
+      { timeout: 2500, maximumAge: 300000, enableHighAccuracy: false }
     );
   } else {
+    clearTimeout(timer);
     tryIPLocation();
   }
 }
@@ -1150,9 +903,7 @@ async function loadWeatherData(lat, lon, fallbackName = '') {
     updateWeatherUI(weatherRes, airData, geoData, fallbackName);
     drawWeatherChart(weatherRes.daily);
     renderForecastIcons(weatherRes.daily);
-  } catch (e) {
-    console.error('날씨 데이터 로드 오류:', e);
-  }
+  } catch (e) {}
 }
 
 function updateWeatherUI(weatherData, airData, geoData, fallbackName) {
@@ -1189,7 +940,9 @@ function updateWeatherUI(weatherData, airData, geoData, fallbackName) {
 function drawWeatherChart(daily) {
   const ctx = document.getElementById('weatherChart');
   if (!ctx || typeof Chart === 'undefined') return;
-  if (weatherChart) weatherChart.destroy();
+  if (weatherChart) {
+    try { weatherChart.destroy(); } catch(e) {}
+  }
   weatherChart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -1222,12 +975,14 @@ function renderForecastIcons(daily) {
   });
 }
 
-// 브라우저 초기 로딩
-window.onload = () => {
+// ─────────────────────────────────────────────
+//  BOOTSTRAP (즉시 실행 보장)
+// ─────────────────────────────────────────────
+(function init() {
   goToday();
   initCalendarGestures();
   startWeatherWidget();
-};
+})();
 </script>
 </body>
 </html>
