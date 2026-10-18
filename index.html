@@ -619,13 +619,8 @@ let selectedDateKey = null;
 let schedules = {};
 let isDraggingCalendar = false; // 제스처 드래그 시 셀 클릭 방지 플래그
 
-try {
-  const saved = localStorage.getItem('kr_cal_schedules');
-  if (saved) schedules = JSON.parse(saved);
-} catch(e) {}
-
 function saveStorage() {
-  try { localStorage.setItem('kr_cal_schedules', JSON.stringify(schedules)); } catch(e) {}
+  // LocalStorage 사용 안 함 (메모리 전용)
 }
 
 // ─────────────────────────────────────────────
