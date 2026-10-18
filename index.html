@@ -379,63 +379,6 @@ body {
   display: inline-block;
 }
 
-/* ── Category Selector ── */
-.category-selector {
-  display: flex;
-  gap: 6px;
-  margin-top: 4px;
-}
-.category-btn {
-  flex: 1;
-  padding: 7px 4px;
-  border: 1px solid var(--col-border);
-  border-radius: 8px;
-  background: var(--col-bg);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--col-week);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.category-btn:hover {
-  border-color: var(--col-accent);
-}
-.category-btn.active#catBtnWork {
-  background: #2563eb;
-  color: #ffffff;
-  border-color: #2563eb;
-}
-.category-btn.active#catBtnStudy {
-  background: #10b981;
-  color: #ffffff;
-  border-color: #10b981;
-}
-.category-btn.active#catBtnSchedule {
-  background: #8b5cf6;
-  color: #ffffff;
-  border-color: #8b5cf6;
-}
-
-.cat-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: #ffffff;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.cat-badge.cat-Work { background: #2563eb; }
-.cat-badge.cat-Study { background: #10b981; }
-.cat-badge.cat-Schedule { background: #8b5cf6; }
-
-.sched-chip-Work { background: #dbeafe !important; color: #1e40af !important; }
-.sched-chip-Study { background: #d1fae5 !important; color: #065f46 !important; }
-.sched-chip-Schedule { background: #ede9fe !important; color: #5b21b6 !important; }
-
 .popup-footer {
   padding: 12px 20px 16px;
   display: flex;
@@ -728,14 +671,6 @@ body {
       <button class="add-sched-toggle" id="addToggleBtn" onclick="toggleAddForm()">＋ 일정 추가</button>
       <div class="add-form" id="addForm">
         <div class="form-group">
-          <label class="form-label">분류 (Work / Study / Schedule)</label>
-          <div class="category-selector">
-            <button type="button" class="category-btn active" id="catBtnWork" onclick="selectCategory('Work')">💼 근무</button>
-            <button type="button" class="category-btn" id="catBtnStudy" onclick="selectCategory('Study')">📚 학원</button>
-            <button type="button" class="category-btn" id="catBtnSchedule" onclick="selectCategory('Schedule')">📅 일정</button>
-          </div>
-        </div>
-        <div class="form-group">
           <label class="form-label">일정 내용</label>
           <input type="text" class="form-input" id="schedText" placeholder="일정을 입력하세요" maxlength="50">
         </div>
@@ -792,7 +727,44 @@ const firebaseConfig = {
 
 let db = null;
 let rtdb = null;
-let schedules = { Work: {}, Study: {}, Schedule: {} };
+let schedules = {};
+
+function parseIncomingData(data) {
+  if (!data || typeof data !== 'object') return {};
+
+  if (data.Work || data.Study || data.Schedule) {
+    const flattened = {};
+    ['Work', 'Study', 'Schedule'].forEach(c => {
+      if (data[c] && typeof data[c] === 'object') {
+        for (const dk in data[c]) {
+          if (!flattened[dk]) flattened[dk] = [];
+          (data[c][dk] || []).forEach(s => {
+            if (s && !flattened[dk].some(x => x.id === s.id)) {
+              flattened[dk].push(s);
+            }
+          });
+        }
+      }
+    });
+    if (data.schedules && typeof data.schedules === 'object') {
+      for (const dk in data.schedules) {
+        if (!flattened[dk]) flattened[dk] = [];
+        (data.schedules[dk] || []).forEach(s => {
+          if (s && !flattened[dk].some(x => x.id === s.id)) {
+            flattened[dk].push(s);
+          }
+        });
+      }
+    }
+    return flattened;
+  }
+
+  if (data.schedules && typeof data.schedules === 'object') {
+    return parseIncomingData(data.schedules);
+  }
+
+  return data;
+}
 
 try {
   if (typeof firebase !== 'undefined') {
@@ -803,28 +775,10 @@ try {
       rtdb = firebase.database();
       rtdb.ref('schedules').on('value', (snapshot) => {
         const data = snapshot.val();
-        if (data) {
-          schedules = {
-            Work: data.Work || {},
-            Study: data.Study || {},
-            Schedule: data.Schedule || {}
-          };
-          if (data.schedules) {
-            for (const dk in data.schedules) {
-              (data.schedules[dk] || []).forEach(s => {
-                const cat = s.category || 'Work';
-                if (!schedules[cat]) schedules[cat] = {};
-                if (!schedules[cat][dk]) schedules[cat][dk] = [];
-                if (!schedules[cat][dk].some(x => x.id === s.id)) {
-                  schedules[cat][dk].push(s);
-                }
-              });
-            }
-          }
-          if (typeof render === 'function') render();
-          if (selectedDateKey && typeof renderSchedList === 'function') {
-            renderSchedList(selectedDateKey);
-          }
+        schedules = parseIncomingData(data);
+        if (typeof render === 'function') render();
+        if (selectedDateKey && typeof renderSchedList === 'function') {
+          renderSchedList(selectedDateKey);
         }
       }, (err) => {
         console.warn("RTDB sync notice:", err);
@@ -838,28 +792,10 @@ try {
       db.collection('schedules').doc('data').onSnapshot((doc) => {
         if (doc.exists && !rtdb) {
           const data = doc.data();
-          if (data) {
-            schedules = {
-              Work: data.Work || {},
-              Study: data.Study || {},
-              Schedule: data.Schedule || {}
-            };
-            if (data.schedules) {
-              for (const dk in data.schedules) {
-                (data.schedules[dk] || []).forEach(s => {
-                  const cat = s.category || 'Work';
-                  if (!schedules[cat]) schedules[cat] = {};
-                  if (!schedules[cat][dk]) schedules[cat][dk] = [];
-                  if (!schedules[cat][dk].some(x => x.id === s.id)) {
-                    schedules[cat][dk].push(s);
-                  }
-                });
-              }
-            }
-            if (typeof render === 'function') render();
-            if (selectedDateKey && typeof renderSchedList === 'function') {
-              renderSchedList(selectedDateKey);
-            }
+          schedules = parseIncomingData(data);
+          if (typeof render === 'function') render();
+          if (selectedDateKey && typeof renderSchedList === 'function') {
+            renderSchedList(selectedDateKey);
           }
         }
       }, (err) => {});
@@ -870,20 +806,14 @@ try {
 }
 
 function saveStorage() {
-  const dataToSave = {
-    Work: schedules.Work || {},
-    Study: schedules.Study || {},
-    Schedule: schedules.Schedule || {}
-  };
-
   if (rtdb) {
     try {
-      rtdb.ref('schedules').set(dataToSave).catch(err => console.error("RTDB save error:", err));
+      rtdb.ref('schedules').set(schedules).catch(err => console.error("RTDB save error:", err));
     } catch(e) {}
   }
   if (db) {
     try {
-      db.collection('schedules').doc('data').set(dataToSave)
+      db.collection('schedules').doc('data').set({ schedules: schedules })
         .catch(err => console.error("Firestore save error:", err));
     } catch(e) {
       console.error("saveStorage error:", e);
@@ -1290,62 +1220,64 @@ function getSchedulesForDate(dk) {
   const parts = dk.split('-').map(Number);
   const dObj = new Date(parts[0], parts[1] - 1, parts[2]);
 
-  const categories = ['Work', 'Study', 'Schedule'];
+  if (!schedules || typeof schedules !== 'object') return res;
 
-  categories.forEach(cat => {
-    const catData = (schedules && schedules[cat]) ? schedules[cat] : {};
-    for (const ok in catData) {
-      (catData[ok] || []).forEach(s => {
-        const itemCat = s.category || cat;
-        if (!s.repeat || s.repeat === 'none') {
-          if (ok === dk) res.push({ ...s, category: itemCat });
-          return;
+  for (const ok in schedules) {
+    if (!Array.isArray(schedules[ok])) continue;
+
+    schedules[ok].forEach(s => {
+      if (!s || !s.text) return;
+
+      if (!s.repeat || s.repeat === 'none') {
+        if (ok === dk) res.push(s);
+        return;
+      }
+
+      const oParts = ok.split('-').map(Number);
+      if (oParts.length !== 3) return;
+      const oObj = new Date(oParts[0], oParts[1] - 1, oParts[2]);
+      if (dObj < oObj) return;
+
+      let unit = '';
+      let interval = 1;
+
+      if (typeof s.repeat === 'object' && s.repeat.unit) {
+        unit = s.repeat.unit;
+        interval = Number(s.repeat.value) || 1;
+      } else if (typeof s.repeat === 'string') {
+        if (s.repeat.startsWith('day-')) {
+          unit = 'day';
+          interval = Number(s.repeat.split('-')[1]) || 1;
+        } else if (s.repeat.startsWith('month-')) {
+          unit = 'month';
+          interval = Number(s.repeat.split('-')[1]) || 1;
+        } else if (s.repeat.startsWith('year-')) {
+          unit = 'year';
+          interval = Number(s.repeat.split('-')[1]) || 1;
+        } else if (s.repeat === 'every6') {
+          unit = 'day';
+          interval = 6;
+        } else if (s.repeat === 'monthly-day') {
+          unit = 'month';
+          interval = 1;
+        } else if (s.repeat === 'yearly') {
+          unit = 'year';
+          interval = 1;
         }
-        const oParts = ok.split('-').map(Number);
-        const oObj = new Date(oParts[0], oParts[1] - 1, oParts[2]);
-        if (dObj < oObj) return;
+      }
 
-        let unit = '';
-        let interval = 1;
-
-        if (typeof s.repeat === 'object' && s.repeat.unit) {
-          unit = s.repeat.unit;
-          interval = Number(s.repeat.value) || 1;
-        } else if (typeof s.repeat === 'string') {
-          if (s.repeat.startsWith('day-')) {
-            unit = 'day';
-            interval = Number(s.repeat.split('-')[1]) || 1;
-          } else if (s.repeat.startsWith('month-')) {
-            unit = 'month';
-            interval = Number(s.repeat.split('-')[1]) || 1;
-          } else if (s.repeat.startsWith('year-')) {
-            unit = 'year';
-            interval = Number(s.repeat.split('-')[1]) || 1;
-          } else if (s.repeat === 'every6') {
-            unit = 'day';
-            interval = 6;
-          } else if (s.repeat === 'monthly-day') {
-            unit = 'month';
-            interval = 1;
-          } else if (s.repeat === 'yearly') {
-            unit = 'year';
-            interval = 1;
-          }
-        }
-
-        if (unit === 'day') {
-          const diffDays = Math.round((dObj - oObj) / 86400000);
-          if (diffDays >= 0 && diffDays % interval === 0) res.push({ ...s, category: itemCat });
-        } else if (unit === 'month') {
-          const monthDiff = (parts[0] - oParts[0]) * 12 + (parts[1] - oParts[1]);
-          if (monthDiff >= 0 && monthDiff % interval === 0 && parts[2] === oParts[2]) res.push({ ...s, category: itemCat });
-        } else if (unit === 'year') {
-          const yearDiff = parts[0] - oParts[0];
-          if (yearDiff >= 0 && yearDiff % interval === 0 && parts[1] === oParts[1] && parts[2] === oParts[2]) res.push({ ...s, category: itemCat });
-        }
-      });
-    }
-  });
+      if (unit === 'day') {
+        const diffDays = Math.round((dObj - oObj) / 86400000);
+        if (diffDays >= 0 && diffDays % interval === 0) res.push(s);
+      } else if (unit === 'month') {
+        const monthDiff = (parts[0] - oParts[0]) * 12 + (parts[1] - oParts[1]);
+        if (monthDiff >= 0 && monthDiff % interval === 0 && parts[2] === oParts[2]) res.push(s);
+      } else if (unit === 'year') {
+        const yearDiff = parts[0] - oParts[0];
+        if (yearDiff >= 0 && yearDiff % interval === 0 && parts[1] === oParts[1] && parts[2] === oParts[2]) res.push(s);
+      }
+    });
+  }
 
   return res;
 }
@@ -1512,22 +1444,6 @@ function toggleAddForm() {
     }
   }
 }
-// ─────────────────────────────────────────────
-//  CATEGORY SELECTION (Work / Study / Schedule)
-// ─────────────────────────────────────────────
-let selectedCategory = 'Work';
-
-function selectCategory(cat) {
-  selectedCategory = cat;
-  const btnWork = document.getElementById('catBtnWork');
-  const btnStudy = document.getElementById('catBtnStudy');
-  const btnSched = document.getElementById('catBtnSchedule');
-
-  if (btnWork) btnWork.classList.toggle('active', cat === 'Work');
-  if (btnStudy) btnStudy.classList.toggle('active', cat === 'Study');
-  if (btnSched) btnSched.classList.toggle('active', cat === 'Schedule');
-}
-
 function cancelAddForm() {
   const form = document.getElementById('addForm');
   if (form) form.classList.remove('open');
@@ -1535,26 +1451,19 @@ function cancelAddForm() {
   if (input) input.value = '';
   selectRepeatUnit('none');
   selectedWheelValue = 1;
-  selectCategory('Work');
 }
 
 function renderSchedList(dk) {
   const list = document.getElementById('schedList');
   if (!list) return;
   const ss = getSchedulesForDate(dk);
-  const catNames = { Work: '근무', Study: '학원', Schedule: '일정' };
 
   list.innerHTML = ss.length ? ss.map((s, i) => {
-    const cat = s.category || 'Schedule';
-    const catName = catNames[cat] || cat;
     const rText = getRepeatText(s.repeat);
     const badge = rText ? `<span class="sched-badge">${rText}</span>` : '';
     return `
       <div class="sched-item">
-        <div style="display:flex;align-items:center;gap:6px;overflow:hidden;flex:1;">
-          <span class="cat-badge cat-${cat}">${catName}</span>
-          <span class="sched-item-text">${s.text}${badge}</span>
-        </div>
+        <span class="sched-item-text">${s.text}${badge}</span>
         <button class="sched-del-btn" onclick="deleteSchedule('${dk}', ${i})">×</button>
       </div>
     `;
@@ -1563,13 +1472,10 @@ function renderSchedList(dk) {
 
 function saveSchedule() {
   const input = document.getElementById('schedText');
-  const text = input ? input.value : '';
+  const text = input ? input.value.trim() : '';
   if (!text) return;
 
-  const cat = selectedCategory || 'Work';
-
-  if (!schedules[cat]) schedules[cat] = {};
-  if (!schedules[cat][selectedDateKey]) schedules[cat][selectedDateKey] = [];
+  if (!schedules[selectedDateKey]) schedules[selectedDateKey] = [];
 
   let repeatData = 'none';
   if (selectedRepeatUnit !== 'none') {
@@ -1579,9 +1485,8 @@ function saveSchedule() {
     };
   }
 
-  schedules[cat][selectedDateKey].push({
+  schedules[selectedDateKey].push({
     text: text,
-    category: cat,
     repeat: repeatData,
     id: Date.now()
   });
@@ -1590,24 +1495,17 @@ function saveSchedule() {
   if (input) input.value = '';
   selectRepeatUnit('none');
   selectedWheelValue = 1;
-  selectCategory('Work');
 }
 
 function deleteSchedule(dk, idx) {
   const ss = getSchedulesForDate(dk);
   const target = ss[idx];
   if (target) {
-    ['Work', 'Study', 'Schedule'].forEach(c => {
-      if (schedules[c]) {
-        for (const k in schedules[c]) {
-          schedules[c][k] = schedules[c][k].filter(s => s.id !== target.id);
-        }
+    for (const k in schedules) {
+      if (Array.isArray(schedules[k])) {
+        schedules[k] = schedules[k].filter(s => s.id !== target.id);
       }
-    });
-    saveStorage(); render(); renderSchedList(dk);
-  }
-}
-    schedules[dk].splice(idx, 1);
+    }
     saveStorage(); render(); renderSchedList(dk);
   }
 }
