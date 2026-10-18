@@ -344,6 +344,63 @@ body {
   display: inline-block;
 }
 
+/* ── Category Selector ── */
+.category-selector {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.category-btn {
+  flex: 1;
+  padding: 7px 4px;
+  border: 1px solid var(--col-border);
+  border-radius: 8px;
+  background: var(--col-bg);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--col-week);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.category-btn:hover {
+  border-color: var(--col-accent);
+}
+.category-btn.active#catBtnWork {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+.category-btn.active#catBtnStudy {
+  background: #10b981;
+  color: #ffffff;
+  border-color: #10b981;
+}
+.category-btn.active#catBtnSchedule {
+  background: #8b5cf6;
+  color: #ffffff;
+  border-color: #8b5cf6;
+}
+
+.cat-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #ffffff;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.cat-badge.cat-Work { background: #2563eb; }
+.cat-badge.cat-Study { background: #10b981; }
+.cat-badge.cat-Schedule { background: #8b5cf6; }
+
+.sched-chip-Work { background: #dbeafe !important; color: #1e40af !important; }
+.sched-chip-Study { background: #d1fae5 !important; color: #065f46 !important; }
+.sched-chip-Schedule { background: #ede9fe !important; color: #5b21b6 !important; }
+
 .popup-footer { padding: 10px 18px 14px; display: flex; gap: 8px; justify-content: flex-end; }
 .btn-cancel, .btn-save {
   padding: 7px 16px;
@@ -431,6 +488,9 @@ body {
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -498,6 +558,14 @@ body {
       <button class="add-sched-toggle" id="addToggleBtn" onclick="toggleAddForm()">＋ 일정 추가</button>
       <div class="add-form" id="addForm">
         <div class="form-group">
+          <label class="form-label">분류 (Work / Study / Schedule)</label>
+          <div class="category-selector">
+            <button type="button" class="category-btn active" id="catBtnWork" onclick="selectCategory('Work')">💼 근무</button>
+            <button type="button" class="category-btn" id="catBtnStudy" onclick="selectCategory('Study')">📚 학원</button>
+            <button type="button" class="category-btn" id="catBtnSchedule" onclick="selectCategory('Schedule')">📅 일정</button>
+          </div>
+        </div>
+        <div class="form-group">
           <label class="form-label">일정 내용</label>
           <input type="text" class="form-input" id="schedText" placeholder="일정을 입력하세요" maxlength="50">
         </div>
@@ -554,12 +622,118 @@ function fmtDate(d) {
 }
 
 // ─────────────────────────────────────────────
-//  LOCALSTORAGE DISABLED (MEMORY-ONLY)
+//  FIREBASE CONFIG & INITIALIZATION
 // ─────────────────────────────────────────────
-let schedules = {};
+const firebaseConfig = {
+  apiKey: "AIzaSyCE990xCLb5_KEEdNdWSG8QTEgDleIzxzs",
+  authDomain: "todo-list-9157d.firebaseapp.com",
+  databaseURL: "https://todo-list-9157d-default-rtdb.firebaseio.com",
+  projectId: "todo-list-9157d",
+  storageBucket: "todo-list-9157d.firebasestorage.app",
+  messagingSenderId: "893935436505",
+  appId: "1:893935436505:web:e66c63f79178e812bdf4c8",
+  measurementId: "G-B3H5HTDNF1"
+};
+
+let db = null;
+let rtdb = null;
+let schedules = { Work: {}, Study: {}, Schedule: {} };
+
+try {
+  if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+
+    // 1. Firebase Realtime Database
+    if (firebase.database) {
+      rtdb = firebase.database();
+      rtdb.ref('schedules').on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          schedules = {
+            Work: data.Work || {},
+            Study: data.Study || {},
+            Schedule: data.Schedule || {}
+          };
+          if (data.schedules) {
+            for (const dk in data.schedules) {
+              (data.schedules[dk] || []).forEach(s => {
+                const cat = s.category || 'Work';
+                if (!schedules[cat]) schedules[cat] = {};
+                if (!schedules[cat][dk]) schedules[cat][dk] = [];
+                if (!schedules[cat][dk].some(x => x.id === s.id)) {
+                  schedules[cat][dk].push(s);
+                }
+              });
+            }
+          }
+          if (typeof render === 'function') render();
+          if (selectedDateKey && typeof renderSchedList === 'function') {
+            renderSchedList(selectedDateKey);
+          }
+        }
+      }, (err) => {
+        console.warn("RTDB sync notice:", err);
+      });
+    }
+
+    // 2. Cloud Firestore
+    if (firebase.firestore) {
+      db = firebase.firestore();
+      db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+      db.collection('schedules').doc('data').onSnapshot((doc) => {
+        if (doc.exists && !rtdb) {
+          const data = doc.data();
+          if (data) {
+            schedules = {
+              Work: data.Work || {},
+              Study: data.Study || {},
+              Schedule: data.Schedule || {}
+            };
+            if (data.schedules) {
+              for (const dk in data.schedules) {
+                (data.schedules[dk] || []).forEach(s => {
+                  const cat = s.category || 'Work';
+                  if (!schedules[cat]) schedules[cat] = {};
+                  if (!schedules[cat][dk]) schedules[cat][dk] = [];
+                  if (!schedules[cat][dk].some(x => x.id === s.id)) {
+                    schedules[cat][dk].push(s);
+                  }
+                });
+              }
+            }
+            if (typeof render === 'function') render();
+            if (selectedDateKey && typeof renderSchedList === 'function') {
+              renderSchedList(selectedDateKey);
+            }
+          }
+        }
+      }, (err) => {});
+    }
+  }
+} catch(e) {
+  console.warn("Firebase init error:", e);
+}
 
 function saveStorage() {
-  // LocalStorage 사용 안 함 (메모리 전용)
+  const dataToSave = {
+    Work: schedules.Work || {},
+    Study: schedules.Study || {},
+    Schedule: schedules.Schedule || {}
+  };
+
+  if (rtdb) {
+    try {
+      rtdb.ref('schedules').set(dataToSave).catch(err => console.error("RTDB save error:", err));
+    } catch(e) {}
+  }
+  if (db) {
+    try {
+      db.collection('schedules').doc('data').set(dataToSave)
+        .catch(err => console.error("Firestore save error:", err));
+    } catch(e) {
+      console.error("saveStorage error:", e);
+    }
+  }
 }
 
 let currentYear, currentMonth;
@@ -788,7 +962,8 @@ function render() {
       dayScheds.slice(0, 3).forEach(s => {
         const chip = document.createElement('div');
         const isOff = s.text.toLowerCase().includes('off');
-        chip.className = 'sched-chip' + (isOff ? ' off-chip' : '');
+        const cat = s.category || 'Schedule';
+        chip.className = `sched-chip sched-chip-${cat}` + (isOff ? ' off-chip' : '');
         chip.textContent = s.text.slice(0, 5);
         sEl.appendChild(chip);
         if (!isOther && isOff) offCount++;
@@ -851,56 +1026,62 @@ function getSchedulesForDate(dk) {
   const res = [];
   const parts = dk.split('-').map(Number);
   const dObj = new Date(parts[0], parts[1] - 1, parts[2]);
-  for (const ok in schedules) {
-    (schedules[ok] || []).forEach(s => {
-      if (!s.repeat || s.repeat === 'none') {
-        if (ok === dk) res.push(s);
-        return;
-      }
-      const oParts = ok.split('-').map(Number);
-      const oObj = new Date(oParts[0], oParts[1] - 1, oParts[2]);
-      if (dObj < oObj) return;
 
-      let unit = '';
-      let interval = 1;
-
-      if (typeof s.repeat === 'object' && s.repeat.unit) {
-        unit = s.repeat.unit;
-        interval = Number(s.repeat.value) || 1;
-      } else if (typeof s.repeat === 'string') {
-        if (s.repeat.startsWith('day-')) {
-          unit = 'day';
-          interval = Number(s.repeat.split('-')[1]) || 1;
-        } else if (s.repeat.startsWith('month-')) {
-          unit = 'month';
-          interval = Number(s.repeat.split('-')[1]) || 1;
-        } else if (s.repeat.startsWith('year-')) {
-          unit = 'year';
-          interval = Number(s.repeat.split('-')[1]) || 1;
-        } else if (s.repeat === 'every6') {
-          unit = 'day';
-          interval = 6;
-        } else if (s.repeat === 'monthly-day') {
-          unit = 'month';
-          interval = 1;
-        } else if (s.repeat === 'yearly') {
-          unit = 'year';
-          interval = 1;
+  const cats = ['Work', 'Study', 'Schedule'];
+  cats.forEach(itemCat => {
+    const catObj = schedules[itemCat] || {};
+    for (const ok in catObj) {
+      (catObj[ok] || []).forEach(s => {
+        if (!s.repeat || s.repeat === 'none') {
+          if (ok === dk) res.push({ ...s, category: itemCat });
+          return;
         }
-      }
+        const oParts = ok.split('-').map(Number);
+        const oObj = new Date(oParts[0], oParts[1] - 1, oParts[2]);
+        if (dObj < oObj) return;
 
-      if (unit === 'day') {
-        const diffDays = Math.round((dObj - oObj) / 86400000);
-        if (diffDays >= 0 && diffDays % interval === 0) res.push(s);
-      } else if (unit === 'month') {
-        const monthDiff = (parts[0] - oParts[0]) * 12 + (parts[1] - oParts[1]);
-        if (monthDiff >= 0 && monthDiff % interval === 0 && parts[2] === oParts[2]) res.push(s);
-      } else if (unit === 'year') {
-        const yearDiff = parts[0] - oParts[0];
-        if (yearDiff >= 0 && yearDiff % interval === 0 && parts[1] === oParts[1] && parts[2] === oParts[2]) res.push(s);
-      }
-    });
-  }
+        let unit = '';
+        let interval = 1;
+
+        if (typeof s.repeat === 'object' && s.repeat.unit) {
+          unit = s.repeat.unit;
+          interval = Number(s.repeat.value) || 1;
+        } else if (typeof s.repeat === 'string') {
+          if (s.repeat.startsWith('day-')) {
+            unit = 'day';
+            interval = Number(s.repeat.split('-')[1]) || 1;
+          } else if (s.repeat.startsWith('month-')) {
+            unit = 'month';
+            interval = Number(s.repeat.split('-')[1]) || 1;
+          } else if (s.repeat.startsWith('year-')) {
+            unit = 'year';
+            interval = Number(s.repeat.split('-')[1]) || 1;
+          } else if (s.repeat === 'every6') {
+            unit = 'day';
+            interval = 6;
+          } else if (s.repeat === 'monthly-day') {
+            unit = 'month';
+            interval = 1;
+          } else if (s.repeat === 'yearly') {
+            unit = 'year';
+            interval = 1;
+          }
+        }
+
+        if (unit === 'day') {
+          const diffDays = Math.round((dObj - oObj) / 86400000);
+          if (diffDays >= 0 && diffDays % interval === 0) res.push({ ...s, category: itemCat });
+        } else if (unit === 'month') {
+          const monthDiff = (parts[0] - oParts[0]) * 12 + (parts[1] - oParts[1]);
+          if (monthDiff >= 0 && monthDiff % interval === 0 && parts[2] === oParts[2]) res.push({ ...s, category: itemCat });
+        } else if (unit === 'year') {
+          const yearDiff = parts[0] - oParts[0];
+          if (yearDiff >= 0 && yearDiff % interval === 0 && parts[1] === oParts[1] && parts[2] === oParts[2]) res.push({ ...s, category: itemCat });
+        }
+      });
+    }
+  });
+
   return res;
 }
 
@@ -1066,6 +1247,23 @@ function toggleAddForm() {
     }
   }
 }
+
+// ─────────────────────────────────────────────
+//  CATEGORY SELECTION (Work / Study / Schedule)
+// ─────────────────────────────────────────────
+let selectedCategory = 'Work';
+
+function selectCategory(cat) {
+  selectedCategory = cat;
+  const btnWork = document.getElementById('catBtnWork');
+  const btnStudy = document.getElementById('catBtnStudy');
+  const btnSched = document.getElementById('catBtnSchedule');
+
+  if (btnWork) btnWork.classList.toggle('active', cat === 'Work');
+  if (btnStudy) btnStudy.classList.toggle('active', cat === 'Study');
+  if (btnSched) btnSched.classList.toggle('active', cat === 'Schedule');
+}
+
 function cancelAddForm() {
   const form = document.getElementById('addForm');
   if (form) form.classList.remove('open');
@@ -1073,22 +1271,41 @@ function cancelAddForm() {
   if (input) input.value = '';
   selectRepeatUnit('none');
   selectedWheelValue = 1;
+  selectCategory('Work');
 }
+
 function renderSchedList(dk) {
   const list = document.getElementById('schedList');
   if (!list) return;
   const ss = getSchedulesForDate(dk);
+  const catNames = { Work: '근무', Study: '학원', Schedule: '일정' };
+
   list.innerHTML = ss.length ? ss.map((s, i) => {
+    const cat = s.category || 'Schedule';
+    const catName = catNames[cat] || cat;
     const rText = getRepeatText(s.repeat);
     const badge = rText ? `<span class="sched-badge">${rText}</span>` : '';
-    return `<div class="sched-item"><span class="sched-item-text">${s.text}${badge}</span><button class="sched-del-btn" onclick="deleteSchedule('${dk}', ${i})">×</button></div>`;
+    return `
+      <div class="sched-item">
+        <div style="display:flex;align-items:center;gap:6px;overflow:hidden;flex:1;">
+          <span class="cat-badge cat-${cat}">${catName}</span>
+          <span class="sched-item-text">${s.text}${badge}</span>
+        </div>
+        <button class="sched-del-btn" onclick="deleteSchedule('${dk}', ${i})">×</button>
+      </div>
+    `;
   }).join('') : '<div style="color:#999;font-size:13px">일정이 없습니다.</div>';
 }
+
 function saveSchedule() {
   const input = document.getElementById('schedText');
   const text = input ? input.value : '';
   if (!text) return;
-  if (!schedules[selectedDateKey]) schedules[selectedDateKey] = [];
+
+  const cat = selectedCategory || 'Work';
+
+  if (!schedules[cat]) schedules[cat] = {};
+  if (!schedules[cat][selectedDateKey]) schedules[cat][selectedDateKey] = [];
 
   let repeatData = 'none';
   if (selectedRepeatUnit !== 'none') {
@@ -1098,15 +1315,31 @@ function saveSchedule() {
     };
   }
 
-  schedules[selectedDateKey].push({ text, repeat: repeatData, id: Date.now() });
+  schedules[cat][selectedDateKey].push({
+    text: text,
+    category: cat,
+    repeat: repeatData,
+    id: Date.now()
+  });
+
   saveStorage(); render(); closePopup();
   if (input) input.value = '';
   selectRepeatUnit('none');
   selectedWheelValue = 1;
+  selectCategory('Work');
 }
+
 function deleteSchedule(dk, idx) {
-  if (schedules[dk]) {
-    schedules[dk].splice(idx, 1);
+  const ss = getSchedulesForDate(dk);
+  const target = ss[idx];
+  if (target) {
+    ['Work', 'Study', 'Schedule'].forEach(c => {
+      if (schedules[c]) {
+        for (const k in schedules[c]) {
+          schedules[c][k] = schedules[c][k].filter(s => s.id !== target.id);
+        }
+      }
+    });
     saveStorage(); render(); renderSchedList(dk);
   }
 }
