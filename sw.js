@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cal-weather-cache-v7';
+const CACHE_NAME = 'cal-weather-cache-v10';
 const APP_SHELL = [
   './',
   './index.html',
@@ -9,7 +9,7 @@ const APP_SHELL = [
   './icon-180.png'
 ];
 
-// 1. 설치: 즉시 활성화 준비 및 캐싱
+// 1. 설치: 즉시 활성화 준비
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
@@ -17,7 +17,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// 2. 활성화: 이전 버전의 모든 오래된 캐시 즉시 완전 삭제 및 클라이언트 제어
+// 2. 활성화: 이전 버전 캐시 완전 즉시 정리
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -32,33 +32,15 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 3. 알림 클릭 이벤트 처리 (잠금화면/배너 클릭 시 PWA 창 열기)
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow('./index.html');
-      }
-    })
-  );
-});
-
-// 4. 요청 처리 (HTML 문서: Network-First로 항상 최신 버전 보장)
+// 3. 요청 처리: HTML 페이지는 Network-First (네트워크 우선 -> 항시 최신 코드 다운로드)
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // 외부 API/CDN 요청: 서비스 워커 가로채기 제외 (브라우저 직접 통신)
+  // 외부 API/CDN 제외
   if (url.origin !== self.location.origin) {
     return;
   }
 
-  // HTML 문서 및 메인 페이지: Network-First (네트워크 우선 -> 실패 시 캐시)
   const isHtml = event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('/');
 
   if (isHtml) {
@@ -80,7 +62,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 기타 정적 파일: Cache-First
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;

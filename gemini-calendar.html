@@ -36,28 +36,24 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.85rem 1rem;
+  padding: 1.25rem 1.5rem;
   background: var(--col-card);
   border-bottom: 1px solid var(--col-border);
   position: sticky;
   top: 0;
   z-index: 10;
-  gap: 8px;
 }
 
 .header-title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.5px;
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .header-nav {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+  gap: 12px;
 }
 
 .month-label {
@@ -100,27 +96,6 @@ body {
   .month-nav-btn.desktop-only {
     display: none !important;
   }
-}
-
-.notif-btn {
-  font-size: 13px;
-  font-weight: 500;
-  padding: 6px 12px;
-  border: 1px solid var(--col-border);
-  border-radius: 8px;
-  background: transparent;
-  cursor: pointer;
-  color: var(--col-week);
-  transition: all 0.15s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.notif-btn:hover { background: var(--col-bg); }
-.notif-btn.active {
-  background: var(--col-accent);
-  color: #fff;
-  border-color: var(--col-accent);
 }
 
 .today-btn {
@@ -648,7 +623,6 @@ body {
 <div class="header">
   <div class="header-title">📅 우리집 달력</div>
   <div class="header-nav">
-    <button class="notif-btn" id="notifBtn" onclick="requestNotificationPermission()">🔔 알림</button>
     <button class="today-btn" onclick="goToday()">오늘</button>
     <div class="month-nav-wrap">
       <button type="button" class="month-nav-btn desktop-only" title="이전 달" onclick="changeMonth(-1)">‹</button>
@@ -866,7 +840,6 @@ try {
         if (selectedDateKey && typeof renderSchedList === 'function') {
           renderSchedList(selectedDateKey);
         }
-        autoCheckTodaySchedules();
       }, (err) => {
         console.warn("RTDB sync notice:", err);
       });
@@ -875,9 +848,7 @@ try {
     // 2. Cloud Firestore
     if (firebase.firestore) {
       db = firebase.firestore();
-      try {
-        db.enablePersistence({ synchronizeTabs: false }).catch(() => {});
-      } catch(pe) {}
+      db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
       db.collection('schedules').doc('data').onSnapshot((doc) => {
         if (doc.exists && !rtdb) {
           const data = doc.data();
@@ -886,7 +857,6 @@ try {
           if (selectedDateKey && typeof renderSchedList === 'function') {
             renderSchedList(selectedDateKey);
           }
-          autoCheckTodaySchedules();
         }
       }, (err) => {});
     }
@@ -1190,9 +1160,6 @@ function render() {
   if (summaryEl) {
     summaryEl.innerHTML = `<span>공휴일 (토·일 포함) <span class="sum-val">${holidayCount}일</span></span><span>OFF <span class="sum-val">${offCount}일</span></span>`;
   }
-
-  autoCheckTodaySchedules();
-}
 }
 
 // ─────────────────────────────────────────────
@@ -1554,38 +1521,16 @@ function updateWheelLabel() {
 }
 
 // ─────────────────────────────────────────────
-//  POPUP & AUTO TODAY MODAL
+//  POPUP
 // ─────────────────────────────────────────────
-let hasAutoOpenedTodayModal = false;
-
-function autoCheckTodaySchedules() {
-  if (hasAutoOpenedTodayModal) return;
-
-  const now = new Date();
-  const todayKey = fmtDate(now);
-  const todayScheds = getSchedulesForDate(todayKey);
-
-  if (todayScheds && todayScheds.length > 0) {
-    hasAutoOpenedTodayModal = true;
-    openPopup(todayKey, now.getFullYear(), now.getMonth() + 1, now.getDate());
-  }
-}
-
 function openPopup(dk, y, m, d) {
   selectedDateKey = dk;
   selectedStartDate = dk;
   selectedEndDate = dk;
   updateDateRangeLabels();
 
-  const todayKey = fmtDate(new Date());
   const popupDate = document.getElementById('popupDate');
-  if (popupDate) {
-    if (dk === todayKey) {
-      popupDate.textContent = `${y}년 ${m}월 ${d}일 오늘 일정 📌`;
-    } else {
-      popupDate.textContent = `${y}년 ${m}월 ${d}일 일정`;
-    }
-  }
+  if (popupDate) popupDate.textContent = `${y}년 ${m}월 ${d}일 일정`;
   
   const allH = { ...getAllHolidays(y), ...getSubstituteHolidays(y) };
   const hInfo = document.getElementById('popupHoliday');
@@ -1722,107 +1667,27 @@ function saveSchedule() {
         const item = schedules[k].find(s => s.id === editingScheduleId);
         if (item) {
           item.text = text;
-          item.startDate = sStart;
-          item.endDate = sEnd;
           item.repeat = repeatData;
           break;
         }
       }
     }
-    sendSystemNotification('✏️ 일정이 수정되었습니다', `[${sStart}] ${text}`);
     editingScheduleId = null;
   } else {
     if (!schedules[selectedDateKey]) schedules[selectedDateKey] = [];
     schedules[selectedDateKey].push({
       text: text,
-      startDate: sStart,
-      endDate: sEnd,
       repeat: repeatData,
       id: Date.now()
     });
-    sendSystemNotification('📅 새 일정이 등록되었습니다', `[${sStart}] ${text}`);
   }
 
-  saveStorage(); render(); closePopup(); updateAppBadge();
+  saveStorage(); render(); closePopup();
   if (input) input.value = '';
   selectRepeatUnit('none');
   selectedWheelValue = 1;
   const saveBtn = document.getElementById('saveBtn');
   if (saveBtn) saveBtn.textContent = '저장';
-}
-
-// ─────────────────────────────────────────────
-//  WEB NOTIFICATION & APP BADGE (PWA 잠금화면 알림)
-// ─────────────────────────────────────────────
-function requestNotificationPermission() {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    alert('이 브라우저는 알림 기능을 지원하지 않습니다.');
-    return;
-  }
-
-  Notification.requestPermission().then((permission) => {
-    updateNotifBtnUI();
-    if (permission === 'granted') {
-      sendSystemNotification('🔔 알림이 설정되었습니다', '이제 새 일정이 등록되거나 변경될 때 잠금화면 알림이 발송됩니다.');
-    }
-  }).catch(() => {});
-}
-
-function updateNotifBtnUI() {
-  const btn = document.getElementById('notifBtn');
-  if (!btn) return;
-  try {
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      btn.classList.add('active');
-      btn.innerHTML = '🔔 알림 켜짐';
-    } else {
-      btn.classList.remove('active');
-      btn.innerHTML = '🔔 알림';
-    }
-  } catch(e) {
-    btn.classList.remove('active');
-    btn.innerHTML = '🔔 알림';
-  }
-}
-
-function updateAppBadge() {
-  try {
-    if (typeof navigator !== 'undefined' && 'setAppBadge' in navigator) {
-      const todayKey = fmtDate(new Date());
-      const count = getSchedulesForDate(todayKey).length;
-      if (count > 0) {
-        navigator.setAppBadge(count).catch(() => {});
-      } else {
-        navigator.clearAppBadge().catch(() => {});
-      }
-    }
-  } catch(e) {}
-}
-
-function sendSystemNotification(title, body) {
-  try {
-    if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') return;
-
-    const options = {
-      body: body,
-      icon: './icon-192.png',
-      badge: './icon-192.png',
-      vibrate: [100, 50, 100],
-      tag: 'cal-notif-' + Date.now(),
-      renotify: true,
-      data: { url: './index.html' }
-    };
-
-    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
-      navigator.serviceWorker.ready.then(registration => {
-        registration.showNotification(title, options);
-      }).catch(() => {
-        new Notification(title, options);
-      });
-    } else {
-      new Notification(title, options);
-    }
-  } catch(e) {}
 }
 
 function deleteSchedule(dk, idx) {
@@ -2002,15 +1867,6 @@ function renderForecastIcons(daily) {
     try { goToday(); } catch(e) { console.error('goToday error:', e); }
     try { initCalendarGestures(); } catch(e) { console.error('initCalendarGestures error:', e); }
     try { startWeatherWidget(); } catch(e) { console.error('startWeatherWidget error:', e); }
-    try { updateNotifBtnUI(); } catch(e) {}
-    try { updateAppBadge(); } catch(e) {}
-
-    // Service Worker 등록 및 즉시 갱신 확인
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').then((reg) => {
-        reg.update().catch(() => {});
-      }).catch(() => {});
-    }
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', run);
