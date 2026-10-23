@@ -96,6 +96,27 @@ body {
   }
 }
 
+.notif-btn {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border: 1px solid var(--col-border);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--col-week);
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.notif-btn:hover { background: var(--col-bg); }
+.notif-btn.active {
+  background: var(--col-accent);
+  color: #fff;
+  border-color: var(--col-accent);
+}
+
 .today-btn {
   font-size: 13px;
   font-weight: 500;
@@ -791,6 +812,7 @@ body {
 <div class="header">
   <div class="header-title">📅 우리집 달력</div>
   <div class="header-nav">
+    <button class="notif-btn" id="notifBtn" onclick="requestNotificationPermission()">🔔 알림</button>
     <button class="today-btn" onclick="goToday()">오늘</button>
     <div class="month-nav-wrap">
       <button type="button" class="month-nav-btn desktop-only" title="이전 달" onclick="changeMonth(-1)">‹</button>
@@ -1949,27 +1971,98 @@ function saveSchedule() {
         const item = schedules[k].find(s => s.id === editingScheduleId);
         if (item) {
           item.text = text;
+          item.startDate = sStart;
+          item.endDate = sEnd;
           item.repeat = repeatData;
           break;
         }
       }
     }
+    sendSystemNotification('✏️ 일정이 수정되었습니다', `[${sStart}] ${text}`);
     editingScheduleId = null;
   } else {
     if (!schedules[selectedDateKey]) schedules[selectedDateKey] = [];
     schedules[selectedDateKey].push({
       text: text,
+      startDate: sStart,
+      endDate: sEnd,
       repeat: repeatData,
       id: Date.now()
     });
+    sendSystemNotification('📅 새 일정이 등록되었습니다', `[${sStart}] ${text}`);
   }
 
-  saveStorage(); render(); closePopup();
+  saveStorage(); render(); closePopup(); updateAppBadge();
   if (input) input.value = '';
   selectRepeatUnit('none');
   selectedWheelValue = 1;
   const saveBtn = document.getElementById('saveBtn');
   if (saveBtn) saveBtn.textContent = '저장';
+}
+
+// ─────────────────────────────────────────────
+//  WEB NOTIFICATION & APP BADGE (PWA 잠금화면 알림)
+// ─────────────────────────────────────────────
+function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    alert('이 브라우저는 알림 기능을 지원하지 않습니다.');
+    return;
+  }
+
+  Notification.requestPermission().then((permission) => {
+    updateNotifBtnUI();
+    if (permission === 'granted') {
+      sendSystemNotification('🔔 알림이 설정되었습니다', '이제 새 일정이 등록되거나 변경될 때 잠금화면 알림이 발송됩니다.');
+    }
+  });
+}
+
+function updateNotifBtnUI() {
+  const btn = document.getElementById('notifBtn');
+  if (!btn) return;
+  if ('Notification' in window && Notification.permission === 'granted') {
+    btn.classList.add('active');
+    btn.innerHTML = '🔔 알림 켜짐';
+  } else {
+    btn.classList.remove('active');
+    btn.innerHTML = '🔔 알림';
+  }
+}
+
+function updateAppBadge() {
+  if ('setAppBadge' in navigator) {
+    const todayKey = fmtDate(new Date());
+    const count = getSchedulesForDate(todayKey).length;
+    if (count > 0) {
+      navigator.setAppBadge(count).catch(() => {});
+    } else {
+      navigator.clearAppBadge().catch(() => {});
+    }
+  }
+}
+
+function sendSystemNotification(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const options = {
+    body: body,
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    vibrate: [100, 50, 100],
+    tag: 'cal-notif-' + Date.now(),
+    renotify: true,
+    data: { url: './index.html' }
+  };
+
+  if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+    navigator.serviceWorker.ready.then(registration => {
+      registration.showNotification(title, options);
+    }).catch(() => {
+      new Notification(title, options);
+    });
+  } else {
+    new Notification(title, options);
+  }
 }
   if (input) input.value = '';
   selectRepeatUnit('none');
@@ -2135,6 +2228,8 @@ function renderForecastIcons(daily) {
     try { goToday(); } catch(e) { console.error('goToday error:', e); }
     try { initCalendarGestures(); } catch(e) { console.error('initCalendarGestures error:', e); }
     try { startWeatherWidget(); } catch(e) { console.error('startWeatherWidget error:', e); }
+    try { updateNotifBtnUI(); } catch(e) {}
+    try { updateAppBadge(); } catch(e) {}
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', run);

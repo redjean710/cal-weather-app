@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cal-weather-cache-v3';
+const CACHE_NAME = 'cal-weather-cache-v4';
 const APP_SHELL = [
   './',
   './index.html',
@@ -25,6 +25,23 @@ self.addEventListener('activate', (event) => {
     )
   );
   self.clients.claim();
+});
+
+// 알림 클릭 이벤트 처리 (잠금화면/배너 클릭 시 PWA 창 열기)
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('./index.html');
+      }
+    })
+  );
 });
 
 // 요청 처리:
