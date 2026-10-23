@@ -856,7 +856,7 @@ function render() {
   for (let d = 1; d <= daysInMonth; d++) {
     const dk = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const wd = new Date(year, month - 1, d).getDay();
-    const hasCustomHol = getSchedulesForDate(dk).some(s => s.text.includes('공휴일'));
+    const hasCustomHol = getSchedulesForDate(dk).some(s => s && s.text && s.text.includes('공휴일'));
     if (wd === 0 || wd === 6 || allHols[dk] || hasCustomHol) holidayCount++;
   }
 
@@ -882,7 +882,7 @@ function render() {
     const dk = `${cy}-${String(cm).padStart(2,'0')}-${String(cd).padStart(2,'0')}`;
     const dow = i % 7;
     const dayScheds = getSchedulesForDate(dk);
-    const isCustomHol = dayScheds.some(s => s.text.includes('공휴일'));
+    const isCustomHol = dayScheds.some(s => s && s.text && s.text.includes('공휴일'));
 
     if (isOther) cell.classList.add('other-month');
     if (dow === 0) cell.classList.add('sun');
@@ -1492,12 +1492,19 @@ function renderForecastIcons(daily) {
 }
 
 // ─────────────────────────────────────────────
-//  BOOTSTRAP (즉시 실행 보장)
+//  BOOTSTRAP (안전 실행 보장)
 // ─────────────────────────────────────────────
-(function init() {
-  goToday();
-  initCalendarGestures();
-  startWeatherWidget();
+(function initApp() {
+  function run() {
+    try { goToday(); } catch(e) { console.error('goToday error:', e); }
+    try { initCalendarGestures(); } catch(e) { console.error('initCalendarGestures error:', e); }
+    try { startWeatherWidget(); } catch(e) { console.error('startWeatherWidget error:', e); }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  } else {
+    run();
+  }
 })();
 </script>
 </body>

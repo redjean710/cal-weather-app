@@ -1087,7 +1087,7 @@ function render() {
   for (let d = 1; d <= daysInMonth; d++) {
     const dk = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const wd = new Date(year, month - 1, d).getDay();
-    const hasCustomHol = getSchedulesForDate(dk).some(s => s.text.includes('공휴일'));
+    const hasCustomHol = getSchedulesForDate(dk).some(s => s && s.text && s.text.includes('공휴일'));
     if (wd === 0 || wd === 6 || allHols[dk] || hasCustomHol) holidayCount++;
   }
 
@@ -1113,7 +1113,7 @@ function render() {
     const dk = `${cy}-${String(cm).padStart(2,'0')}-${String(cd).padStart(2,'0')}`;
     const dow = i % 7;
     const dayScheds = getSchedulesForDate(dk);
-    const isCustomHol = dayScheds.some(s => s.text.includes('공휴일'));
+    const isCustomHol = dayScheds.some(s => s && s.text && s.text.includes('공휴일'));
 
     if (isOther) cell.classList.add('other-month');
     if (dow === 0) cell.classList.add('sun');
@@ -1139,10 +1139,9 @@ function render() {
       sEl.className = 'schedules';
       dayScheds.slice(0, 3).forEach(s => {
         const chip = document.createElement('div');
-        const isOff = s.text.toLowerCase().includes('off');
-        const cat = s.category || 'Schedule';
-        chip.className = `sched-chip sched-chip-${cat}` + (isOff ? ' off-chip' : '');
-        chip.textContent = s.text.slice(0, 5);
+        const isOff = s && s.text && s.text.toLowerCase().includes('off');
+        chip.className = 'sched-chip' + (isOff ? ' off-chip' : '');
+        chip.textContent = (s && s.text ? s.text : '').slice(0, 5);
         sEl.appendChild(chip);
         if (!isOther && isOff) offCount++;
       });
@@ -1741,12 +1740,19 @@ function renderForecastIcons(daily) {
   });
 }
 
-// 브라우저 초기 로딩
-window.onload = () => {
-  goToday();
-  initCalendarGestures();
-  startWeatherWidget();
-};
+// 브라우저 안전 초기화
+(function initApp() {
+  function run() {
+    try { goToday(); } catch(e) { console.error('goToday error:', e); }
+    try { initCalendarGestures(); } catch(e) { console.error('initCalendarGestures error:', e); }
+    try { startWeatherWidget(); } catch(e) { console.error('startWeatherWidget error:', e); }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  } else {
+    run();
+  }
+})();
 </script>
 </body>
 </html>
