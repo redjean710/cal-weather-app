@@ -439,6 +439,22 @@ body {
 }
 .sched-item-text { flex: 1; font-weight: 500; }
 .sched-item-repeat { font-size: 11px; color: var(--col-muted); margin-left: 6px; }
+.sched-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.sched-edit-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 13px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.sched-edit-btn:hover { opacity: 1; }
 .sched-del-btn {
   border: none;
   background: transparent;
@@ -703,7 +719,7 @@ body {
         </div>
         <div style="display:flex;gap:8px;margin-top:10px">
           <button class="btn-cancel" onclick="cancelAddForm()">취소</button>
-          <button class="btn-save" onclick="saveSchedule()" style="flex:1">저장</button>
+          <button class="btn-save" id="saveBtn" onclick="saveSchedule()" style="flex:1">저장</button>
         </div>
       </div>
     </div>
@@ -1444,13 +1460,66 @@ function toggleAddForm() {
     }
   }
 }
+let editingScheduleId = null;
+
+function editSchedule(dk, idx) {
+  const ss = getSchedulesForDate(dk);
+  const target = ss[idx];
+  if (!target) return;
+
+  editingScheduleId = target.id;
+
+  const form = document.getElementById('addForm');
+  if (form) form.classList.add('open');
+
+  const input = document.getElementById('schedText');
+  if (input) input.value = target.text || '';
+
+  let unit = 'none';
+  let val = 1;
+
+  if (target.repeat && typeof target.repeat === 'object') {
+    unit = target.repeat.unit || 'none';
+    val = Number(target.repeat.value) || 1;
+  } else if (typeof target.repeat === 'string') {
+    if (target.repeat.startsWith('day-')) {
+      unit = 'day';
+      val = Number(target.repeat.split('-')[1]) || 1;
+    } else if (target.repeat.startsWith('month-')) {
+      unit = 'month';
+      val = Number(target.repeat.split('-')[1]) || 1;
+    } else if (target.repeat.startsWith('year-')) {
+      unit = 'year';
+      val = Number(target.repeat.split('-')[1]) || 1;
+    } else if (target.repeat === 'every6') {
+      unit = 'day';
+      val = 6;
+    } else if (target.repeat === 'monthly-day') {
+      unit = 'month';
+      val = 1;
+    } else if (target.repeat === 'yearly') {
+      unit = 'year';
+      val = 1;
+    }
+  }
+
+  selectedWheelValue = val;
+  selectRepeatUnit(unit);
+
+  const saveBtn = document.getElementById('saveBtn');
+  if (saveBtn) saveBtn.textContent = '수정 완료';
+}
+
 function cancelAddForm() {
   const form = document.getElementById('addForm');
   if (form) form.classList.remove('open');
   const input = document.getElementById('schedText');
   if (input) input.value = '';
+  editingScheduleId = null;
   selectRepeatUnit('none');
   selectedWheelValue = 1;
+  const saveBtn = document.getElementById('saveBtn');
+  if (saveBtn) saveBtn.textContent = '저장';
 }
 
 function renderSchedList(dk) {
@@ -1464,7 +1533,10 @@ function renderSchedList(dk) {
     return `
       <div class="sched-item">
         <span class="sched-item-text">${s.text}${badge}</span>
-        <button class="sched-del-btn" onclick="deleteSchedule('${dk}', ${i})">×</button>
+        <div class="sched-item-actions">
+          <button class="sched-edit-btn" title="수정" onclick="editSchedule('${dk}', ${i})">✏️</button>
+          <button class="sched-del-btn" title="삭제" onclick="deleteSchedule('${dk}', ${i})">×</button>
+        </div>
       </div>
     `;
   }).join('') : '<div style="color:#999;font-size:13px">일정이 없습니다.</div>';
@@ -1475,8 +1547,6 @@ function saveSchedule() {
   const text = input ? input.value.trim() : '';
   if (!text) return;
 
-  if (!schedules[selectedDateKey]) schedules[selectedDateKey] = [];
-
   let repeatData = 'none';
   if (selectedRepeatUnit !== 'none') {
     repeatData = {
@@ -1485,13 +1555,34 @@ function saveSchedule() {
     };
   }
 
-  schedules[selectedDateKey].push({
-    text: text,
-    repeat: repeatData,
-    id: Date.now()
-  });
+  if (editingScheduleId) {
+    for (const k in schedules) {
+      if (Array.isArray(schedules[k])) {
+        const item = schedules[k].find(s => s.id === editingScheduleId);
+        if (item) {
+          item.text = text;
+          item.repeat = repeatData;
+          break;
+        }
+      }
+    }
+    editingScheduleId = null;
+  } else {
+    if (!schedules[selectedDateKey]) schedules[selectedDateKey] = [];
+    schedules[selectedDateKey].push({
+      text: text,
+      repeat: repeatData,
+      id: Date.now()
+    });
+  }
 
   saveStorage(); render(); closePopup();
+  if (input) input.value = '';
+  selectRepeatUnit('none');
+  selectedWheelValue = 1;
+  const saveBtn = document.getElementById('saveBtn');
+  if (saveBtn) saveBtn.textContent = '저장';
+}
   if (input) input.value = '';
   selectRepeatUnit('none');
   selectedWheelValue = 1;
