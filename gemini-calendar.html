@@ -251,6 +251,122 @@ body {
   -webkit-appearance: none;
 }
 
+/* ── Date Range & DatePicker Modal ── */
+.date-range-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.date-picker-btn {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--col-border);
+  border-radius: 8px;
+  background: var(--col-card);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--col-week);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.date-picker-btn:hover {
+  border-color: var(--col-accent);
+}
+.date-range-separator {
+  color: var(--col-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.date-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.date-modal-overlay.open {
+  display: flex;
+}
+.date-picker-modal {
+  background: var(--col-card);
+  border-radius: var(--radius);
+  width: 310px;
+  max-width: 90vw;
+  padding: 16px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+  animation: popIn 0.2s ease;
+}
+.date-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.date-picker-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.date-picker-nav-btn {
+  border: 1px solid var(--col-border);
+  background: transparent;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+.dp-dow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--col-muted);
+  padding-bottom: 4px;
+}
+.dp-dow.sun { color: var(--col-sun); }
+.dp-dow.sat { color: var(--col-sat); }
+.dp-day {
+  font-size: 12px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.dp-day:hover {
+  background: var(--col-bg);
+}
+.dp-day.selected {
+  background: var(--col-accent);
+  color: #fff !important;
+  font-weight: 700;
+}
+.dp-day.other-month {
+  color: #ccc;
+}
+.dp-day.sun { color: var(--col-sun); }
+.dp-day.sat { color: var(--col-sat); }
+.date-picker-footer {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* ── Repeat Checkboxes & Number Wheel ── */
 .repeat-group-header {
   display: flex;
@@ -524,6 +640,18 @@ body {
           <input type="text" class="form-input" id="schedText" placeholder="일정을 입력하세요" maxlength="50">
         </div>
         <div class="form-group">
+          <label class="form-label">기간 선택</label>
+          <div class="date-range-row">
+            <button type="button" class="date-picker-btn" id="startDateBtn" onclick="openDatePickerModal('start')">
+              📅 <span id="startDateLabel">--</span>
+            </button>
+            <span class="date-range-separator">~</span>
+            <button type="button" class="date-picker-btn" id="endDateBtn" onclick="openDatePickerModal('end')">
+              📅 <span id="endDateLabel">--</span>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
           <div class="repeat-group-header">
             <label class="form-label" style="margin-bottom:0">반복</label>
             <div class="repeat-checkboxes">
@@ -555,6 +683,21 @@ body {
           <button class="btn-save" id="saveBtn" onclick="saveSchedule()" style="flex:1">저장</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Date Picker Modal -->
+<div class="date-modal-overlay" id="datePickerOverlay" onclick="handleDatePickerOverlayClick(event)">
+  <div class="date-picker-modal">
+    <div class="date-picker-header">
+      <button type="button" class="date-picker-nav-btn" onclick="changeDatePickerMonth(-1)">‹</button>
+      <div class="date-picker-title" id="datePickerTitle">2025년 5월</div>
+      <button type="button" class="date-picker-nav-btn" onclick="changeDatePickerMonth(1)">›</button>
+    </div>
+    <div class="date-picker-grid" id="datePickerGrid"></div>
+    <div class="date-picker-footer">
+      <button type="button" class="btn-cancel" onclick="closeDatePickerModal()">닫기</button>
     </div>
   </div>
 </div>
@@ -985,6 +1128,128 @@ function initCalendarGestures() {
   }
 }
 
+// ─────────────────────────────────────────────
+//  DATE RANGE PICKER & SUB-MODAL
+// ─────────────────────────────────────────────
+let pickerMode = 'start';
+let selectedStartDate = '';
+let selectedEndDate = '';
+let dpYear = 2025;
+let dpMonth = 5;
+
+function openDatePickerModal(mode) {
+  pickerMode = mode;
+  const initialDateStr = mode === 'start' ? selectedStartDate : selectedEndDate;
+  if (initialDateStr) {
+    const parts = initialDateStr.split('-').map(Number);
+    if (parts.length === 3) {
+      dpYear = parts[0];
+      dpMonth = parts[1];
+    }
+  } else {
+    const now = new Date();
+    dpYear = now.getFullYear();
+    dpMonth = now.getMonth() + 1;
+  }
+  renderDatePicker();
+  const overlay = document.getElementById('datePickerOverlay');
+  if (overlay) overlay.classList.add('open');
+}
+
+function closeDatePickerModal() {
+  const overlay = document.getElementById('datePickerOverlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function handleDatePickerOverlayClick(e) {
+  if (e.target.id === 'datePickerOverlay') closeDatePickerModal();
+}
+
+function changeDatePickerMonth(delta) {
+  dpMonth += delta;
+  if (dpMonth > 12) { dpMonth = 1; dpYear++; }
+  if (dpMonth < 1) { dpMonth = 12; dpYear--; }
+  renderDatePicker();
+}
+
+function renderDatePicker() {
+  const title = document.getElementById('datePickerTitle');
+  if (title) title.textContent = `${dpYear}년 ${dpMonth}월`;
+
+  const grid = document.getElementById('datePickerGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  const dows = ['일','월','화','수','목','금','토'];
+  dows.forEach((d, i) => {
+    const el = document.createElement('div');
+    el.className = 'dp-dow' + (i === 0 ? ' sun' : (i === 6 ? ' sat' : ''));
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  const firstDay = new Date(dpYear, dpMonth - 1, 1).getDay();
+  const daysInMonth = new Date(dpYear, dpMonth, 0).getDate();
+  const daysInPrev = new Date(dpYear, dpMonth - 1, 0).getDate();
+
+  const activeDate = pickerMode === 'start' ? selectedStartDate : selectedEndDate;
+  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+
+  for (let i = 0; i < totalCells; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'dp-day';
+    let cd, cy, cm, isOther = false;
+    if (i < firstDay) {
+      cd = daysInPrev - firstDay + i + 1;
+      cy = dpMonth === 1 ? dpYear - 1 : dpYear;
+      cm = dpMonth === 1 ? 12 : dpMonth - 1;
+      isOther = true;
+    } else if (i >= firstDay + daysInMonth) {
+      cd = i - firstDay - daysInMonth + 1;
+      cy = dpMonth === 12 ? dpYear + 1 : dpYear;
+      cm = dpMonth === 12 ? 1 : dpMonth + 1;
+      isOther = true;
+    } else {
+      cd = i - firstDay + 1; cy = dpYear; cm = dpMonth;
+    }
+
+    const dk = `${cy}-${String(cm).padStart(2,'0')}-${String(cd).padStart(2,'0')}`;
+    const dow = i % 7;
+
+    if (isOther) cell.classList.add('other-month');
+    if (dow === 0) cell.classList.add('sun');
+    if (dow === 6) cell.classList.add('sat');
+    if (dk === activeDate) cell.classList.add('selected');
+
+    cell.textContent = cd;
+    cell.onclick = () => selectDateFromPicker(dk);
+    grid.appendChild(cell);
+  }
+}
+
+function selectDateFromPicker(dk) {
+  if (pickerMode === 'start') {
+    selectedStartDate = dk;
+    if (selectedEndDate < selectedStartDate) {
+      selectedEndDate = selectedStartDate;
+    }
+  } else {
+    selectedEndDate = dk;
+    if (selectedStartDate > selectedEndDate) {
+      selectedStartDate = selectedEndDate;
+    }
+  }
+  updateDateRangeLabels();
+  closeDatePickerModal();
+}
+
+function updateDateRangeLabels() {
+  const lblStart = document.getElementById('startDateLabel');
+  const lblEnd = document.getElementById('endDateLabel');
+  if (lblStart) lblStart.textContent = selectedStartDate || '--';
+  if (lblEnd) lblEnd.textContent = selectedEndDate || '--';
+}
+
 function getSchedulesForDate(dk) {
   const res = [];
   const parts = dk.split('-').map(Number);
@@ -998,12 +1263,15 @@ function getSchedulesForDate(dk) {
     schedules[ok].forEach(s => {
       if (!s || !s.text) return;
 
+      const sStart = s.startDate || ok;
+      const sEnd = s.endDate || sStart;
+
       if (!s.repeat || s.repeat === 'none') {
-        if (ok === dk) res.push(s);
+        if (dk >= sStart && dk <= sEnd) res.push(s);
         return;
       }
 
-      const oParts = ok.split('-').map(Number);
+      const oParts = sStart.split('-').map(Number);
       if (oParts.length !== 3) return;
       const oObj = new Date(oParts[0], oParts[1] - 1, oParts[2]);
       if (dObj < oObj) return;
@@ -1185,6 +1453,10 @@ function updateWheelLabel() {
 // ─────────────────────────────────────────────
 function openPopup(dk, y, m, d) {
   selectedDateKey = dk;
+  selectedStartDate = dk;
+  selectedEndDate = dk;
+  updateDateRangeLabels();
+
   const popupDate = document.getElementById('popupDate');
   if (popupDate) popupDate.textContent = `${y}년 ${m}월 ${d}일 해야 할 일`;
   
@@ -1223,6 +1495,10 @@ function editSchedule(dk, idx) {
   if (!target) return;
 
   editingScheduleId = target.id;
+
+  selectedStartDate = target.startDate || dk;
+  selectedEndDate = target.endDate || selectedStartDate;
+  updateDateRangeLabels();
 
   const form = document.getElementById('addForm');
   if (form) form.classList.add('open');
@@ -1271,6 +1547,9 @@ function cancelAddForm() {
   const input = document.getElementById('schedText');
   if (input) input.value = '';
   editingScheduleId = null;
+  selectedStartDate = selectedDateKey;
+  selectedEndDate = selectedDateKey;
+  updateDateRangeLabels();
   selectRepeatUnit('none');
   selectedWheelValue = 1;
   const saveBtn = document.getElementById('saveBtn');
