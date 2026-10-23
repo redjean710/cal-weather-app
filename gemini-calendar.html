@@ -1487,7 +1487,7 @@ function openPopup(dk, y, m, d) {
   updateDateRangeLabels();
 
   const popupDate = document.getElementById('popupDate');
-  if (popupDate) popupDate.textContent = `${y}년 ${m}월 ${d}일 해야 할 일`;
+  if (popupDate) popupDate.textContent = `${y}년 ${m}월 ${d}일 일정`;
   
   const allH = { ...getAllHolidays(y), ...getSubstituteHolidays(y) };
   const hInfo = document.getElementById('popupHoliday');
