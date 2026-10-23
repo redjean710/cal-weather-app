@@ -36,24 +36,28 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem 1.5rem;
+  padding: 0.85rem 1rem;
   background: var(--col-card);
   border-bottom: 1px solid var(--col-border);
   position: sticky;
   top: 0;
   z-index: 10;
+  gap: 8px;
 }
 
 .header-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .header-nav {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .month-label {
@@ -871,7 +875,9 @@ try {
     // 2. Cloud Firestore
     if (firebase.firestore) {
       db = firebase.firestore();
-      db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+      try {
+        db.enablePersistence({ synchronizeTabs: false }).catch(() => {});
+      } catch(pe) {}
       db.collection('schedules').doc('data').onSnapshot((doc) => {
         if (doc.exists && !rtdb) {
           const data = doc.data();

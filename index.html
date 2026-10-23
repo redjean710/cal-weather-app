@@ -35,24 +35,28 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem 1.5rem;
+  padding: 0.85rem 1rem;
   background: var(--col-card);
   border-bottom: 1px solid var(--col-border);
   position: sticky;
   top: 0;
   z-index: 10;
+  gap: 8px;
 }
 
 .header-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .header-nav {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .month-label {
@@ -1025,7 +1029,9 @@ try {
     // 2. Cloud Firestore
     if (firebase.firestore) {
       db = firebase.firestore();
-      db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+      try {
+        db.enablePersistence({ synchronizeTabs: false }).catch(() => {});
+      } catch(pe) {}
       db.collection('schedules').doc('data').onSnapshot((doc) => {
         if (doc.exists && !rtdb) {
           const data = doc.data();
@@ -1195,6 +1201,13 @@ function getAllHolidays(year) {
   return { ...fixed, ...lunar, ...election };
 }
 
+function parseDateParts(str) {
+  if (!str) return new Date();
+  const parts = String(str).split('-').map(Number);
+  if (parts.length < 3) return new Date(str);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
 function getSubstituteHolidays(year) {
   const all = getAllHolidays(year);
   const subst = {};
@@ -1207,8 +1220,9 @@ function getSubstituteHolidays(year) {
   const occupied = new Set(Object.keys(all));
 
   function findNextWorkday(dateStr) {
-    let cur = new Date(dateStr);
-    while (true) {
+    let cur = parseDateParts(dateStr);
+    let count = 0;
+    while (count++ < 30) {
       cur.setDate(cur.getDate() + 1);
       const k = fmtDate(cur);
       const day = cur.getDay();
@@ -1216,12 +1230,13 @@ function getSubstituteHolidays(year) {
         return k;
       }
     }
+    return dateStr;
   }
 
   Object.keys(all).sort().forEach(k => {
     const name = all[k];
     if (satSunSubstNames.includes(name)) {
-      const d = new Date(k);
+      const d = parseDateParts(k);
       const dow = d.getDay();
       if (dow === 0 || dow === 6) {
         const nextWorkday = findNextWorkday(k);
@@ -1237,7 +1252,7 @@ function getSubstituteHolidays(year) {
 
     let needSubstCount = 0;
     blockKeys.forEach(k => {
-      const d = new Date(k);
+      const d = parseDateParts(k);
       const dow = d.getDay();
       const otherFixed = Object.keys(getFixedHolidays(year)).filter(fk => fk === k);
       if (dow === 0 || otherFixed.length > 0) {
@@ -2106,17 +2121,34 @@ async function startWeatherWidget() {
   const elLoc = document.getElementById('weatherLocation');
   if (elLoc) elLoc.innerText = '현재 위치 확인 중...';
 
-  if (navigator.geolocation) {
+  let resolved = false;
+  const timer = setTimeout(() => {
+    if (!resolved) {
+      resolved = true;
+      tryIPLocation();
+    }
+  }, 2500);
+
+  if (typeof navigator !== 'undefined' && navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        loadWeatherData(pos.coords.latitude, pos.coords.longitude);
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          loadWeatherData(pos.coords.latitude, pos.coords.longitude);
+        }
       },
       () => {
-        tryIPLocation();
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          tryIPLocation();
+        }
       },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 300000 }
+      { timeout: 2500, maximumAge: 300000, enableHighAccuracy: false }
     );
   } else {
+    clearTimeout(timer);
     tryIPLocation();
   }
 }

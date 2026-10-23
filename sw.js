@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cal-weather-cache-v4';
+const CACHE_NAME = 'cal-weather-cache-v5';
 const APP_SHELL = [
   './',
   './index.html',
@@ -45,17 +45,22 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // 요청 처리:
-// - 같은 출처(앱 셸/폰트)는 캐시 우선, 실패 시 네트워크
-// - 날씨 API 등 외부 데이터는 항상 네트워크에서 가져옴 (실시간성 유지)
+// - 외부 API/CDN은 네트워크 직접 통신
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  const isExternalApi =
+  const isExternal =
     url.hostname.includes('open-meteo.com') ||
     url.hostname.includes('nominatim.openstreetmap.org') ||
-    url.hostname.includes('ipapi.co');
+    url.hostname.includes('ipapi.co') ||
+    url.hostname.includes('ipwho.is') ||
+    url.hostname.includes('gstatic.com') ||
+    url.hostname.includes('jsdelivr.net') ||
+    url.hostname.includes('googleapis.com');
 
-  if (isExternalApi) {
-    event.respondWith(fetch(event.request).catch(() => new Response('{}', { headers: { 'Content-Type': 'application/json' } })));
+  if (isExternal) {
+    event.respondWith(
+      fetch(event.request).catch(() => new Response('{}', { headers: { 'Content-Type': 'application/json' } }))
+    );
     return;
   }
 
