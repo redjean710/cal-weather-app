@@ -66,6 +66,38 @@ body {
   -webkit-user-select: none;
 }
 
+.month-nav-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.month-nav-btn {
+  border: 1px solid var(--col-border);
+  background: var(--col-card);
+  color: var(--col-week);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.month-nav-btn:hover {
+  background: var(--col-bg);
+  border-color: var(--col-accent);
+}
+
+@media (max-width: 768px) {
+  .month-nav-btn.desktop-only {
+    display: none !important;
+  }
+}
+
 .today-btn {
   font-size: 13px;
   font-weight: 500;
@@ -592,7 +624,11 @@ body {
   <div class="header-title">📅 우리집 달력</div>
   <div class="header-nav">
     <button class="today-btn" onclick="goToday()">오늘</button>
-    <div class="month-label" id="monthLabel"></div>
+    <div class="month-nav-wrap">
+      <button type="button" class="month-nav-btn desktop-only" title="이전 달" onclick="changeMonth(-1)">‹</button>
+      <div class="month-label" id="monthLabel"></div>
+      <button type="button" class="month-nav-btn desktop-only" title="다음 달" onclick="changeMonth(1)">›</button>
+    </div>
   </div>
 </div>
 
