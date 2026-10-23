@@ -111,12 +111,15 @@ body {
 
 .day-cell {
   background: var(--col-card);
-  min-height: 95px;
+  height: 90px;
+  min-height: 90px;
+  max-height: 90px;
   padding: 4px 6px;
   cursor: pointer;
   position: relative;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   -webkit-tap-highlight-color: transparent;
 }
 .day-cell:hover { background: #f9f8f5; }
@@ -827,6 +830,20 @@ function changeMonth(delta) {
   render();
 }
 
+function truncateByBytes(str, maxBytes = 8) {
+  if (!str) return '';
+  let bytes = 0;
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charAt(i);
+    const charBytes = (str.charCodeAt(i) > 0x7f) ? 2 : 1;
+    if (bytes + charBytes > maxBytes) break;
+    bytes += charBytes;
+    result += ch;
+  }
+  return result;
+}
+
 function render() {
   const year = currentYear, month = currentMonth;
   const monthLabel = document.getElementById('monthLabel');
@@ -908,9 +925,9 @@ function render() {
       sEl.className = 'schedules';
       dayScheds.slice(0, 3).forEach(s => {
         const chip = document.createElement('div');
-        const isOff = s.text && s.text.toLowerCase().includes('off');
+        const isOff = s && s.text && s.text.toLowerCase().includes('off');
         chip.className = 'sched-chip' + (isOff ? ' off-chip' : '');
-        chip.textContent = (s.text || '').slice(0, 5);
+        chip.textContent = truncateByBytes(s ? s.text : '', 8);
         sEl.appendChild(chip);
         if (!isOther && isOff) offCount++;
       });

@@ -116,13 +116,16 @@ body {
 /* ── Day cells ── */
 .day-cell {
   background: var(--col-card);
-  min-height: 110px;
+  height: 95px;
+  min-height: 95px;
+  max-height: 95px;
   padding: 6px 8px 6px;
   cursor: pointer;
   position: relative;
   transition: background 0.12s;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .day-cell:hover { background: #f9f8f5; }
 .day-cell.other-month { background: #fafafa; }
@@ -1058,6 +1061,20 @@ function changeMonth(delta) {
   render();
 }
 
+function truncateByBytes(str, maxBytes = 8) {
+  if (!str) return '';
+  let bytes = 0;
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charAt(i);
+    const charBytes = (str.charCodeAt(i) > 0x7f) ? 2 : 1;
+    if (bytes + charBytes > maxBytes) break;
+    bytes += charBytes;
+    result += ch;
+  }
+  return result;
+}
+
 function render() {
   const year = currentYear, month = currentMonth;
   const monthLabel = document.getElementById('monthLabel');
@@ -1141,7 +1158,7 @@ function render() {
         const chip = document.createElement('div');
         const isOff = s && s.text && s.text.toLowerCase().includes('off');
         chip.className = 'sched-chip' + (isOff ? ' off-chip' : '');
-        chip.textContent = (s && s.text ? s.text : '').slice(0, 5);
+        chip.textContent = truncateByBytes(s ? s.text : '', 8);
         sEl.appendChild(chip);
         if (!isOther && isOff) offCount++;
       });
