@@ -994,6 +994,7 @@ try {
         if (selectedDateKey && typeof renderSchedList === 'function') {
           renderSchedList(selectedDateKey);
         }
+        autoCheckTodaySchedules();
       }, (err) => {
         console.warn("RTDB sync notice:", err);
       });
@@ -1011,6 +1012,7 @@ try {
           if (selectedDateKey && typeof renderSchedList === 'function') {
             renderSchedList(selectedDateKey);
           }
+          autoCheckTodaySchedules();
         }
       }, (err) => {});
     }
@@ -1385,6 +1387,9 @@ function render() {
   if (summaryEl) {
     summaryEl.innerHTML = `<span>공휴일 (토·일 포함) <span class="sum-val">${holidayCount}일</span></span><span>OFF <span class="sum-val">${offCount}일</span></span>`;
   }
+
+  autoCheckTodaySchedules();
+}
 }
 
 // ─────────────────────────────────────────────
@@ -1776,16 +1781,38 @@ function updateWheelLabel() {
 }
 
 // ─────────────────────────────────────────────
-//  POPUP LOGIC
+//  POPUP & AUTO TODAY MODAL
 // ─────────────────────────────────────────────
+let hasAutoOpenedTodayModal = false;
+
+function autoCheckTodaySchedules() {
+  if (hasAutoOpenedTodayModal) return;
+
+  const now = new Date();
+  const todayKey = fmtDate(now);
+  const todayScheds = getSchedulesForDate(todayKey);
+
+  if (todayScheds && todayScheds.length > 0) {
+    hasAutoOpenedTodayModal = true;
+    openPopup(todayKey, now.getFullYear(), now.getMonth() + 1, now.getDate());
+  }
+}
+
 function openPopup(dk, y, m, d) {
   selectedDateKey = dk;
   selectedStartDate = dk;
   selectedEndDate = dk;
   updateDateRangeLabels();
 
+  const todayKey = fmtDate(new Date());
   const popupDate = document.getElementById('popupDate');
-  if (popupDate) popupDate.textContent = `${y}년 ${m}월 ${d}일 일정`;
+  if (popupDate) {
+    if (dk === todayKey) {
+      popupDate.textContent = `${y}년 ${m}월 ${d}일 오늘 일정 📌`;
+    } else {
+      popupDate.textContent = `${y}년 ${m}월 ${d}일 일정`;
+    }
+  }
   
   const allH = { ...getAllHolidays(y), ...getSubstituteHolidays(y) };
   const hInfo = document.getElementById('popupHoliday');
