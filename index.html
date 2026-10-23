@@ -1068,7 +1068,9 @@ function saveStorage() {
 // ─────────────────────────────────────────────
 //  STATE
 // ─────────────────────────────────────────────
-let currentYear, currentMonth;
+const _initDate = new Date();
+let currentYear = _initDate.getFullYear();
+let currentMonth = _initDate.getMonth() + 1;
 let selectedDateKey = null;
 let isDraggingCalendar = false; // 제스처 드래그 시 셀 클릭 방지 플래그
 
@@ -1310,6 +1312,11 @@ function truncateByBytes(str, maxBytes = 8) {
 }
 
 function render() {
+  if (!currentYear || isNaN(currentYear) || !currentMonth || isNaN(currentMonth)) {
+    const now = new Date();
+    currentYear = now.getFullYear();
+    currentMonth = now.getMonth() + 1;
+  }
   const year = currentYear, month = currentMonth;
   const monthLabel = document.getElementById('monthLabel');
   if (monthLabel) monthLabel.textContent = `${year}년 ${month}월`;
