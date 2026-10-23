@@ -132,6 +132,22 @@ body {
   border-radius: 50%;
 }
 
+.day-num-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.more-sched-icon {
+  font-size: 11px;
+  color: var(--col-muted);
+  font-weight: 700;
+  line-height: 1;
+  padding-right: 2px;
+  user-select: none;
+}
+
 .day-num {
   font-size: 13px;
   font-weight: 500;
@@ -1050,10 +1066,23 @@ function render() {
     if (allHols[dk] || isCustomHol) cell.classList.add('holiday-cell');
     if (dk === todayKey) cell.classList.add('today');
 
+    const numRow = document.createElement('div');
+    numRow.className = 'day-num-row';
+
     const numEl = document.createElement('div');
     numEl.className = 'day-num';
     numEl.textContent = cd;
-    cell.appendChild(numEl);
+    numRow.appendChild(numEl);
+
+    if (dayScheds.length >= 4) {
+      const moreIcon = document.createElement('span');
+      moreIcon.className = 'more-sched-icon';
+      moreIcon.title = `일정 총 ${dayScheds.length}개`;
+      moreIcon.textContent = '☰';
+      numRow.appendChild(moreIcon);
+    }
+
+    cell.appendChild(numRow);
 
     if (allHols[dk]) {
       const hn = document.createElement('div');
