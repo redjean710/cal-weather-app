@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cal-weather-cache-v6';
+const CACHE_NAME = 'cal-weather-cache-v7';
 const APP_SHELL = [
   './',
   './index.html',
@@ -9,25 +9,30 @@ const APP_SHELL = [
   './icon-180.png'
 ];
 
-// 설치: 앱 셸 파일을 캐시에 저장
+// 1. 설치: 즉시 활성화 준비 및 캐싱
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).catch(() => {})
   );
-  self.skipWaiting();
 });
 
-// 활성화: 이전 버전 캐시 정리
+// 2. 활성화: 이전 버전의 모든 오래된 캐시 즉시 완전 삭제 및 클라이언트 제어
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+      Promise.all(
+        keys.map((k) => {
+          if (k !== CACHE_NAME) {
+            return caches.delete(k);
+          }
+        })
+      )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// 알림 클릭 이벤트 처리 (잠금화면/배너 클릭 시 PWA 창 열기)
+// 3. 알림 클릭 이벤트 처리 (잠금화면/배너 클릭 시 PWA 창 열기)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
@@ -44,36 +49,44 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// 요청 처리:
+// 4. 요청 처리 (HTML 문서: Network-First로 항상 최신 버전 보장)
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // 1. 외부 날씨/위치 API 요청 (실시간 네트워크 통신, 실패 시 빈 JSON)
-  const isApi =
-    url.hostname.includes('open-meteo.com') ||
-    url.hostname.includes('nominatim.openstreetmap.org') ||
-    url.hostname.includes('ipapi.co') ||
-    url.hostname.includes('ipwho.is');
-
-  if (isApi) {
-    event.respondWith(
-      fetch(event.request).catch(() => new Response('{}', { headers: { 'Content-Type': 'application/json' } }))
-    );
-    return;
-  }
-
-  // 2. 외부 CDN 스크립트/폰트/Firebase 요청 (서비스 워커에서 가로채지 않고 브라우저 직접 통신)
+  // 외부 API/CDN 요청: 서비스 워커 가로채기 제외 (브라우저 직접 통신)
   if (url.origin !== self.location.origin) {
     return;
   }
 
-  // 3. 동일 출처 앱 셸 (캐시 우선, 네트워크 백업)
+  // HTML 문서 및 메인 페이지: Network-First (네트워크 우선 -> 실패 시 캐시)
+  const isHtml = event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('/');
+
+  if (isHtml) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request).then((cached) => {
+            return cached || caches.match('./index.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // 기타 정적 파일: Cache-First
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
       return fetch(event.request)
         .then((response) => {
-          if (response && response.status === 200 && url.origin === self.location.origin) {
+          if (response && response.status === 200) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }

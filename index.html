@@ -2284,6 +2284,13 @@ function renderForecastIcons(daily) {
     try { startWeatherWidget(); } catch(e) { console.error('startWeatherWidget error:', e); }
     try { updateNotifBtnUI(); } catch(e) {}
     try { updateAppBadge(); } catch(e) {}
+
+    // Service Worker 등록 및 즉시 갱신 확인
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then((reg) => {
+        reg.update().catch(() => {});
+      }).catch(() => {});
+    }
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', run);
